@@ -3,7 +3,9 @@ import { getRuntimeDefaults } from "../env";
 import { createHelloOk, serverVersion, supportedEvents, supportedMethods } from "../protocol/connect";
 import { badRequest, methodNotAllowed, notFound, notImplemented, toClawflareError } from "../protocol/errors";
 import { jsonResponse } from "../shared/http";
+import { handleWebChatMessage } from "../channels/webchat";
 import { handleTelegramSetWebhook, handleTelegramStatus, handleTelegramWebhook } from "../channels/telegram";
+import { renderDebugWebChat } from "../web";
 import { handleChatCompletions, handleModelGet, handleModelsList, handleResponses } from "./openai";
 
 type RouteHandler = (request: Request, env: ClawflareEnv, ctx?: ExecutionContext) => Response | Promise<Response>;
@@ -74,13 +76,12 @@ function routeHealth(request: Request, env: ClawflareEnv): Response {
 }
 
 function routeRoot(): Response {
-  return new Response("Clawflare debug surface placeholder\n", {
-    headers: { "content-type": "text/plain; charset=utf-8" },
-  });
+  return renderDebugWebChat();
 }
 
 const reservedRoutes: ReservedRoute[] = [
   { method: "GET", path: "/", handler: routeRoot },
+  { method: "POST", path: "/webchat/message", handler: handleWebChatMessage },
   { method: "GET", path: "/healthz", handler: routeHealth },
   { method: "GET", path: "/ws", handler: routeWebSocket },
   { method: "GET", path: "/v1/models", handler: handleModelsList },

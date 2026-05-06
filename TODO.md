@@ -143,11 +143,11 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 10. Debug WebChat
 
-- [ ] Implement minimal `src/channels/webchat.ts`.
-- [ ] Implement minimal `src/web/` UI or static debug page.
-- [ ] Wire WebChat to the same AgentObject protocol path.
-- [ ] Keep WebChat marked debug/control-only in docs and UI.
-- [ ] Add smoke tests for debug WebChat send/receive.
+- [x] Implement minimal `src/channels/webchat.ts`.
+- [x] Implement minimal `src/web/` UI or static debug page.
+- [x] Wire WebChat to the same AgentObject protocol path.
+- [x] Keep WebChat marked debug/control-only in docs and UI.
+- [x] Add smoke tests for debug WebChat send/receive.
 
 ## 11. ClawHub Skills And Plugin Planning
 

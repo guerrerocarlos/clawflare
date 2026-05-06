@@ -2,6 +2,8 @@
 
 Clawflare is an OpenClaw-compatible agent gateway subset designed for Cloudflare Workers, Durable Objects, Queues, R2, D1, KV, Vectorize, and Workers AI. The MVP uses Telegram as the primary communication channel and keeps WebChat/HTTP endpoints as debug and compatibility surfaces.
 
+`GET /` serves a minimal WebChat page for local debugging/control only. Do not treat it as the primary user channel.
+
 ## MVP Scope
 
 - OpenClaw-compatible Gateway protocol subset.
