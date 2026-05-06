@@ -182,16 +182,16 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 13. MVP Verification
 
-- [ ] Run unit tests.
-- [ ] Run Workers/Miniflare integration tests.
-- [ ] Run fake provider end-to-end Telegram webhook test.
-- [ ] Run fake provider OpenAI-compatible HTTP test.
-- [ ] Run queue idempotency tests.
-- [ ] Run ClawHub skill install test with fixture metadata.
-- [ ] Run security audit tests.
-- [ ] Document local setup.
-- [ ] Document deploy setup.
-- [ ] Document Telegram bot setup and webhook registration.
+- [x] Run unit tests.
+- [x] Run Workers/Miniflare integration tests.
+- [x] Run fake provider end-to-end Telegram webhook test.
+- [x] Run fake provider OpenAI-compatible HTTP test.
+- [x] Run queue idempotency tests.
+- [x] Run ClawHub skill install test with fixture metadata.
+- [x] Run security audit tests.
+- [x] Document local setup.
+- [x] Document deploy setup.
+- [x] Document Telegram bot setup and webhook registration.
 
 ## 14. Post-MVP Backlog
 

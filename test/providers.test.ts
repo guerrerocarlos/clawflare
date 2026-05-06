@@ -75,7 +75,7 @@ describe("openai-compatible provider", () => {
       },
     ]);
     expect(list.calls[0]?.input.toString()).toBe("https://openai.test/v1/models");
-    expect((list.calls[0]?.init?.headers as Record<string, string>).authorization).toBe("Bearer openai-secret");
+    expect((list.calls[0]!.init!.headers as Record<string, string>).authorization).toBe("Bearer openai-secret");
 
     const completion = mockFetch(jsonResponse({ choices: [{ message: { content: "hello" } }], usage: { total_tokens: 3 } }));
     await expect(
@@ -139,7 +139,7 @@ describe("anthropic-compatible provider", () => {
       ),
     ).resolves.toMatchObject({ text: "anthropic hello" });
     expect(calls[0]?.input.toString()).toBe("https://anthropic.test/v1/messages");
-    expect((calls[0]?.init?.headers as Record<string, string>)["x-api-key"]).toBe("anthropic-secret");
+    expect((calls[0]!.init!.headers as Record<string, string>)["x-api-key"]).toBe("anthropic-secret");
     expect(JSON.parse(calls[0]?.init?.body as string)).toMatchObject({
       model: "claude-test",
       system: "system",
@@ -188,6 +188,6 @@ describe("cloudflare-ai-gateway provider", () => {
     expect(calls[0]?.input.toString()).toBe(
       "https://gateway.ai.cloudflare.com/v1/acct/gateway/openai/chat/completions",
     );
-    expect((calls[0]?.init?.headers as Record<string, string>).authorization).toBe("Bearer gateway-secret");
+    expect((calls[0]!.init!.headers as Record<string, string>).authorization).toBe("Bearer gateway-secret");
   });
 });

@@ -24,6 +24,12 @@ corepack pnpm test
 corepack pnpm dev
 ```
 
+Detailed setup docs:
+
+- [Local setup](docs/local-setup.md)
+- [Deploy setup](docs/deploy-setup.md)
+- [Telegram setup](docs/telegram.md)
+
 Useful scripts:
 
 ```sh
