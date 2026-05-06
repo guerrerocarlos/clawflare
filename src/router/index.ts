@@ -7,6 +7,7 @@ import { handleWebChatMessage } from "../channels/webchat";
 import { handleTelegramSetWebhook, handleTelegramStatus, handleTelegramWebhook } from "../channels/telegram";
 import { renderDebugWebChat } from "../web";
 import { handleChatCompletions, handleModelGet, handleModelsList, handleResponses } from "./openai";
+import { handleDoctor } from "./doctor";
 
 type RouteHandler = (request: Request, env: ClawflareEnv, ctx?: ExecutionContext) => Response | Promise<Response>;
 
@@ -83,6 +84,7 @@ const reservedRoutes: ReservedRoute[] = [
   { method: "GET", path: "/", handler: routeRoot },
   { method: "POST", path: "/webchat/message", handler: handleWebChatMessage },
   { method: "GET", path: "/healthz", handler: routeHealth },
+  { method: "GET", path: "/doctor", handler: handleDoctor },
   { method: "GET", path: "/ws", handler: routeWebSocket },
   { method: "GET", path: "/v1/models", handler: handleModelsList },
   { method: "POST", path: "/v1/chat/completions", handler: handleChatCompletions },

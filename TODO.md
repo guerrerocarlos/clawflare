@@ -169,16 +169,16 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 12. Security, Audit, And Doctor
 
-- [ ] Implement `src/security/auth.ts`.
-- [ ] Implement scope checks for read/write/admin operations.
-- [ ] Implement `src/security/audit.ts`.
-- [ ] Emit audit events for plugin install/enable/update.
-- [ ] Emit audit events for channel allowlist/pairing changes.
-- [ ] Emit audit events for config writes.
-- [ ] Add redaction helpers for logs and audit payloads.
-- [ ] Implement `src/cli/doctor.ts` or a minimal doctor route/command.
-- [ ] Doctor checks required bindings, secrets, unsafe Telegram config, and plugin state.
-- [ ] Add security/audit/doctor tests.
+- [x] Implement `src/security/auth.ts`.
+- [x] Implement scope checks for read/write/admin operations.
+- [x] Implement `src/security/audit.ts`.
+- [x] Emit audit events for plugin install/enable/update.
+- [x] Emit audit events for channel allowlist/pairing changes.
+- [x] Emit audit events for config writes.
+- [x] Add redaction helpers for logs and audit payloads.
+- [x] Implement `src/cli/doctor.ts` or a minimal doctor route/command.
+- [x] Doctor checks required bindings, secrets, unsafe Telegram config, and plugin state.
+- [x] Add security/audit/doctor tests.
 
 ## 13. MVP Verification
 

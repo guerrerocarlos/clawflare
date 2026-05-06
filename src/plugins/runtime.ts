@@ -8,6 +8,8 @@ import { resolvePluginRef } from "./resolver";
 import { scanPluginSource } from "./scanner";
 import type { ClawHubPackage, ClawHubSkill, InstalledPlugin, ParsedPluginManifest } from "./types";
 import type { PluginStore } from "./registry";
+import type { AuditSink } from "../security/audit";
+import { pluginAudit } from "../security/audit";
 
 export interface PluginRuntimeOptions {
   env: ClawflareEnv;
@@ -16,6 +18,7 @@ export interface PluginRuntimeOptions {
   client?: ClawHubClient;
   store: PluginStore;
   r2?: Pick<R2Storage, "putPluginManifest" | "putPluginArchive">;
+  audit?: AuditSink;
 }
 
 export class ClawflarePluginRuntime {
@@ -93,11 +96,30 @@ export class ClawflarePluginRuntime {
       );
     }
 
-    return await this.options.store.install(manifest);
+    const installed = await this.options.store.install(manifest);
+    await this.options.audit?.record(
+      pluginAudit("plugin.install", {
+        accountId: this.options.accountId,
+        agentId: this.options.agentId,
+        pluginId: manifest.pluginId,
+        payload: { version: manifest.version },
+      }),
+    );
+
+    return installed;
   }
 
   async enable(pluginId: string): Promise<InstalledPlugin> {
-    return await this.options.store.enable(pluginId);
+    const enabled = await this.options.store.enable(pluginId);
+    await this.options.audit?.record(
+      pluginAudit("plugin.enable", {
+        accountId: this.options.accountId,
+        agentId: this.options.agentId,
+        pluginId,
+      }),
+    );
+
+    return enabled;
   }
 
   async enabledSkills(): Promise<ClawHubSkill[]> {
