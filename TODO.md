@@ -39,13 +39,13 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 3. Storage Foundations
 
-- [ ] Add D1 migrations for `accounts`, `agents`, `plugin_installs`, `audit_events`, and `idempotency_keys`.
-- [ ] Add DO SQLite migrations for `sessions`, `runs`, `run_events`, `workspace_index`, and `plugin_runtime_state`.
-- [ ] Implement `src/storage/d1.ts`.
-- [ ] Implement `src/storage/r2.ts`.
-- [ ] Implement `src/storage/do-sqlite.ts`.
-- [ ] Implement R2 key helpers for transcripts, run events, workspace files, plugins, and artifacts.
-- [ ] Add migration and storage adapter tests.
+- [x] Add D1 migrations for `accounts`, `agents`, `plugin_installs`, `audit_events`, and `idempotency_keys`.
+- [x] Add DO SQLite migrations for `sessions`, `runs`, `run_events`, `workspace_index`, and `plugin_runtime_state`.
+- [x] Implement `src/storage/d1.ts`.
+- [x] Implement `src/storage/r2.ts`.
+- [x] Implement `src/storage/do-sqlite.ts`.
+- [x] Implement R2 key helpers for transcripts, run events, workspace files, plugins, and artifacts.
+- [x] Add migration and storage adapter tests.
 
 ## 4. Agent Run Loop
 
