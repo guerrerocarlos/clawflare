@@ -116,30 +116,30 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 9. Telegram Primary Channel
 
-- [ ] Implement `src/channels/types.ts`.
-- [ ] Implement `src/channels/session-routing.ts`.
-- [ ] Implement `src/channels/telegram.ts`.
-- [ ] Implement Telegram webhook verification using `X-Telegram-Bot-Api-Secret-Token`.
-- [ ] Add `TELEGRAM_WEBHOOK_SECRET` to env typing and docs.
-- [ ] Implement dedupe by Telegram `update_id`.
-- [ ] Normalize Telegram direct messages.
-- [ ] Normalize Telegram group messages.
-- [ ] Enforce mention/command requirement for groups.
-- [ ] Implement unknown-sender pairing/approval response.
-- [ ] Implement allowlist storage and checks.
-- [ ] Implement `src/channels/telegram-delivery.ts` using `sendMessage`.
-- [ ] Split long Telegram messages safely.
-- [ ] Add reply-to behavior when message ID is available.
-- [ ] Retry transient/rate-limit failures through `channel-delivery`.
-- [ ] Do not retry permanent Telegram authorization failures.
-- [ ] Implement Telegram `/start`.
-- [ ] Implement Telegram `/help`.
-- [ ] Implement Telegram `/status`.
-- [ ] Implement Telegram `/plugin search <query>`.
-- [ ] Implement Telegram `/plugin install <ref>` as install-plan flow.
-- [ ] Implement authenticated `/telegram/status`.
-- [ ] Implement authenticated `/telegram/set-webhook`.
-- [ ] Add Telegram webhook, routing, pairing, command, and delivery tests with mocked Bot API.
+- [x] Implement `src/channels/types.ts`.
+- [x] Implement `src/channels/session-routing.ts`.
+- [x] Implement `src/channels/telegram.ts`.
+- [x] Implement Telegram webhook verification using `X-Telegram-Bot-Api-Secret-Token`.
+- [x] Add `TELEGRAM_WEBHOOK_SECRET` to env typing and docs.
+- [x] Implement dedupe by Telegram `update_id`.
+- [x] Normalize Telegram direct messages.
+- [x] Normalize Telegram group messages.
+- [x] Enforce mention/command requirement for groups.
+- [x] Implement unknown-sender pairing/approval response.
+- [x] Implement allowlist storage and checks.
+- [x] Implement `src/channels/telegram-delivery.ts` using `sendMessage`.
+- [x] Split long Telegram messages safely.
+- [x] Add reply-to behavior when message ID is available.
+- [x] Retry transient/rate-limit failures through `channel-delivery`.
+- [x] Do not retry permanent Telegram authorization failures.
+- [x] Implement Telegram `/start`.
+- [x] Implement Telegram `/help`.
+- [x] Implement Telegram `/status`.
+- [x] Implement Telegram `/plugin search <query>`.
+- [x] Implement Telegram `/plugin install <ref>` as install-plan flow.
+- [x] Implement authenticated `/telegram/status`.
+- [x] Implement authenticated `/telegram/set-webhook`.
+- [x] Add Telegram webhook, routing, pairing, command, and delivery tests with mocked Bot API.
 
 ## 10. Debug WebChat
 

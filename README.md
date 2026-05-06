@@ -42,4 +42,11 @@ wrangler secret put TELEGRAM_BOT_TOKEN
 wrangler secret put TELEGRAM_WEBHOOK_SECRET
 ```
 
+Telegram optional vars:
+
+```sh
+wrangler secret put TELEGRAM_ALLOWED_USER_IDS
+wrangler secret put TELEGRAM_BOT_USERNAME
+```
+
 Provider secrets such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `CLOUDFLARE_AI_GATEWAY_API_KEY` are optional until provider runtime phases are implemented.

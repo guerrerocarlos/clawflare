@@ -20,6 +20,9 @@ export interface ClawflareEnv {
   CLAWFLARE_GATEWAY_TOKEN?: string;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
+  TELEGRAM_BOT_USERNAME?: string;
+  TELEGRAM_ALLOWED_USER_IDS?: string;
+  TELEGRAM_API_BASE_URL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_COMPATIBLE_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;

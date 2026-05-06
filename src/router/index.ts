@@ -3,6 +3,7 @@ import { getRuntimeDefaults } from "../env";
 import { createHelloOk, serverVersion, supportedEvents, supportedMethods } from "../protocol/connect";
 import { badRequest, methodNotAllowed, notFound, notImplemented, toClawflareError } from "../protocol/errors";
 import { jsonResponse } from "../shared/http";
+import { handleTelegramSetWebhook, handleTelegramStatus, handleTelegramWebhook } from "../channels/telegram";
 import { handleChatCompletions, handleModelGet, handleModelsList, handleResponses } from "./openai";
 
 type RouteHandler = (request: Request, env: ClawflareEnv, ctx?: ExecutionContext) => Response | Promise<Response>;
@@ -85,7 +86,9 @@ const reservedRoutes: ReservedRoute[] = [
   { method: "GET", path: "/v1/models", handler: handleModelsList },
   { method: "POST", path: "/v1/chat/completions", handler: handleChatCompletions },
   { method: "POST", path: "/v1/responses", handler: handleResponses },
-  { method: "POST", path: "/webhook/telegram", handler: reservedNotImplemented },
+  { method: "POST", path: "/webhook/telegram", handler: handleTelegramWebhook },
+  { method: "GET", path: "/telegram/status", handler: handleTelegramStatus },
+  { method: "POST", path: "/telegram/set-webhook", handler: handleTelegramSetWebhook },
   { method: "POST", path: "/tools/invoke", handler: reservedNotImplemented },
 ];
 
