@@ -88,16 +88,16 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 7. Queue Infrastructure
 
-- [ ] Define `QueueEnvelope<T>` schemas.
-- [ ] Implement `src/queues/index.ts`.
-- [ ] Implement `channel-delivery` consumer skeleton.
-- [ ] Implement `webhook-events` consumer skeleton.
-- [ ] Implement `transcript-indexing` consumer skeleton.
-- [ ] Implement `plugin-scans` consumer skeleton.
-- [ ] Implement `audit-events` consumer skeleton.
-- [ ] Add idempotency checks for queue consumers.
-- [ ] Add dead-letter/final failure audit behavior.
-- [ ] Add queue tests for idempotent processing and permanent failure handling.
+- [x] Define `QueueEnvelope<T>` schemas.
+- [x] Implement `src/queues/index.ts`.
+- [x] Implement `channel-delivery` consumer skeleton.
+- [x] Implement `webhook-events` consumer skeleton.
+- [x] Implement `transcript-indexing` consumer skeleton.
+- [x] Implement `plugin-scans` consumer skeleton.
+- [x] Implement `audit-events` consumer skeleton.
+- [x] Add idempotency checks for queue consumers.
+- [x] Add dead-letter/final failure audit behavior.
+- [x] Add queue tests for idempotent processing and permanent failure handling.
 
 ## 8. Built-In Tools
 
