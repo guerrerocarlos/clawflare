@@ -2,6 +2,7 @@ import type { ClawflareEnv } from "../env";
 import { getRuntimeDefaults } from "../env";
 import type { AgentEventSink, AgentRunInput, AgentRuntime, AgentWaitInput } from "../agents/runtime";
 import { createHelloOk, protocolVersion, supportedEvents, supportedMethods } from "../protocol/connect";
+import { createDefaultToolRegistry } from "../tools/registry";
 import {
   badRequest,
   createGatewayError,
@@ -224,6 +225,9 @@ export async function executeGatewayMethod(request: GatewayRequest, context: Gat
       return await executeAgentWait(request, context);
     case "sessions.list":
       return await executeSessionsList(request, context);
+    case "tools.catalog":
+      requireAuthenticated(context.connection);
+      return { tools: createDefaultToolRegistry().catalog() };
     default:
       if (supportedMethods.includes(request.method as (typeof supportedMethods)[number])) {
         requireAuthenticated(context.connection);

@@ -101,18 +101,18 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 8. Built-In Tools
 
-- [ ] Define `ToolRuntime` interface.
-- [ ] Implement tool registry.
-- [ ] Implement `tools.catalog` method.
-- [ ] Implement `workspace_list`.
-- [ ] Implement `workspace_read`.
-- [ ] Implement `workspace_write`.
-- [ ] Implement `workspace_patch`.
-- [ ] Implement `web_fetch` with SSRF checks, hostname allowlist, response caps, and content extraction.
-- [ ] Implement `message_send` through channel runtime.
-- [ ] Implement `memory_search` stub or Vectorize-backed minimal version.
-- [ ] Implement tool policy checks in `src/security/policy.ts`.
-- [ ] Add tests for tool schema validation, allowed calls, denied calls, and R2-backed workspace behavior.
+- [x] Define `ToolRuntime` interface.
+- [x] Implement tool registry.
+- [x] Implement `tools.catalog` method.
+- [x] Implement `workspace_list`.
+- [x] Implement `workspace_read`.
+- [x] Implement `workspace_write`.
+- [x] Implement `workspace_patch`.
+- [x] Implement `web_fetch` with SSRF checks, hostname allowlist, response caps, and content extraction.
+- [x] Implement `message_send` through channel runtime.
+- [x] Implement `memory_search` stub or Vectorize-backed minimal version.
+- [x] Implement tool policy checks in `src/security/policy.ts`.
+- [x] Add tests for tool schema validation, allowed calls, denied calls, and R2-backed workspace behavior.
 
 ## 9. Telegram Primary Channel
 
