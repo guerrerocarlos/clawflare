@@ -4,16 +4,16 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 0. Project Scaffold
 
-- [ ] Create `package.json` with TypeScript, Wrangler, Vitest, Cloudflare test pool, TypeBox, lint, and format dependencies.
-- [ ] Create `tsconfig.json` for strict ESM TypeScript.
-- [ ] Create `vitest.config.ts`.
-- [ ] Create `wrangler.jsonc` with Worker, Durable Object, D1, R2, KV, Queue, Vectorize, AI, and secrets placeholders.
-- [ ] Create the initial folder tree from `IMPLEMENTATION.md`.
-- [ ] Add `.gitignore`.
-- [ ] Add initial `README.md` with dev commands and MVP scope.
-- [ ] Add `src/env.ts` with typed Cloudflare bindings.
-- [ ] Add `src/entry.ts` with placeholder `fetch`, `queue`, and `AgentObject` exports.
-- [ ] Verify `pnpm typecheck` and `pnpm test` can run.
+- [x] Create `package.json` with TypeScript, Wrangler, Vitest, Cloudflare test pool, TypeBox, lint, and format dependencies.
+- [x] Create `tsconfig.json` for strict ESM TypeScript.
+- [x] Create `vitest.config.ts`.
+- [x] Create `wrangler.jsonc` with Worker, Durable Object, D1, R2, KV, Queue, Vectorize, AI, and secrets placeholders.
+- [x] Create the initial folder tree from `IMPLEMENTATION.md`.
+- [x] Add `.gitignore`.
+- [x] Add initial `README.md` with dev commands and MVP scope.
+- [x] Add `src/env.ts` with typed Cloudflare bindings.
+- [x] Add `src/entry.ts` with placeholder `fetch`, `queue`, and `AgentObject` exports.
+- [x] Verify `pnpm typecheck` and `pnpm test` can run.
 
 ## 1. Core Protocol And Routing
 

@@ -1,0 +1,33 @@
+{
+  "name": "clawflare",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint .",
+    "format": "prettier --write .",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:migrate:local": "wrangler d1 migrations apply clawflare --local",
+    "db:migrate": "wrangler d1 migrations apply clawflare",
+    "queues:tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.9.9",
+    "@cloudflare/workers-types": "^4.20260504.0",
+    "oxlint": "^1.18.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.41.0"
+  }
+}

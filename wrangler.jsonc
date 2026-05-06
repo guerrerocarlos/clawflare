@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clawflare",
+  "main": "src/entry.ts",
+  "compatibility_date": "2026-05-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "AGENT_OBJECT", "class_name": "AgentObject" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AgentObject"]
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "clawflare",
+      "database_id": "replace-after-create"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "TRANSCRIPTS", "bucket_name": "clawflare-transcripts" },
+    { "binding": "ARTIFACTS", "bucket_name": "clawflare-artifacts" },
+    { "binding": "PLUGIN_ARCHIVES", "bucket_name": "clawflare-plugin-archives" }
+  ],
+  "kv_namespaces": [{ "binding": "CATALOG_CACHE", "id": "replace-after-create" }],
+  "queues": {
+    "producers": [
+      { "binding": "CHANNEL_DELIVERY_QUEUE", "queue": "channel-delivery" },
+      { "binding": "WEBHOOK_EVENTS_QUEUE", "queue": "webhook-events" },
+      { "binding": "TRANSCRIPT_INDEXING_QUEUE", "queue": "transcript-indexing" },
+      { "binding": "PLUGIN_SCANS_QUEUE", "queue": "plugin-scans" },
+      { "binding": "AUDIT_EVENTS_QUEUE", "queue": "audit-events" }
+    ],
+    "consumers": [
+      { "queue": "channel-delivery", "max_batch_size": 10, "max_batch_timeout": 5 },
+      { "queue": "webhook-events", "max_batch_size": 10, "max_batch_timeout": 5 },
+      { "queue": "transcript-indexing", "max_batch_size": 20, "max_batch_timeout": 10 },
+      { "queue": "plugin-scans", "max_batch_size": 5, "max_batch_timeout": 10 },
+      { "queue": "audit-events", "max_batch_size": 20, "max_batch_timeout": 10 }
+    ]
+  },
+  "vectorize": [{ "binding": "MEMORY_INDEX", "index_name": "clawflare-memory" }],
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "CLAWFLARE_ENV": "dev",
+    "CLAWFLARE_DEFAULT_ACCOUNT_ID": "local",
+    "CLAWFLARE_DEFAULT_AGENT_ID": "main"
+  },
+  // Secrets are configured with `wrangler secret put`.
+  // Required later: CLAWFLARE_GATEWAY_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
+  // Provider secrets: OPENAI_API_KEY, ANTHROPIC_API_KEY, CLOUDFLARE_AI_GATEWAY_API_KEY.
+  "observability": {
+    "enabled": true
+  }
+}
