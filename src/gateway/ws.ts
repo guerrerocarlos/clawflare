@@ -1,4 +1,5 @@
 import type { ClawflareEnv } from "../env";
+import type { AgentRuntime } from "../agents/runtime";
 import { createConnectChallenge } from "../protocol/connect";
 import { badRequest, toClawflareError } from "../protocol/errors";
 import {
@@ -9,6 +10,7 @@ import {
   type GatewayEvent,
 } from "../protocol/frames";
 import { dispatchGatewayMethod } from "./methods";
+import type { GatewayMethodContext } from "./methods";
 import { createGatewayConnectionState, nextSequence, type GatewayConnectionState } from "./state";
 
 export interface GatewayWebSocket {
@@ -26,6 +28,10 @@ export interface GatewaySocketAttachment {
   expiresAt: string;
   lastSeenAt: string;
   scopes: readonly string[];
+}
+
+export interface GatewaySocketMessageOptions {
+  agentRuntime?: AgentRuntime;
 }
 
 function serialize(state: GatewayConnectionState): GatewaySocketAttachment {
@@ -97,6 +103,7 @@ export async function handleGatewaySocketMessage(
   state: GatewayConnectionState,
   env: ClawflareEnv,
   message: ArrayBuffer | string,
+  options?: GatewaySocketMessageOptions,
 ): Promise<void> {
   try {
     if (typeof message !== "string") {
@@ -109,7 +116,19 @@ export async function handleGatewaySocketMessage(
       throw badRequest("Gateway WebSocket messages must be request frames.");
     }
 
-    const response = await dispatchGatewayMethod(frame, { env, connection: state });
+    const methodContext: GatewayMethodContext = {
+      env,
+      connection: state,
+      emitAgentEvent: (event) => {
+        sendGatewayEvent(socket, state, eventFrame("agent", event));
+      },
+    };
+
+    if (options?.agentRuntime !== undefined) {
+      methodContext.agentRuntime = options.agentRuntime;
+    }
+
+    const response = await dispatchGatewayMethod(frame, methodContext);
     socket.send(JSON.stringify(response));
     persistConnectionState(socket, state);
 

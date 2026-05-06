@@ -1,6 +1,10 @@
 import type { ClawflareEnv } from "../env";
 import { getRuntimeDefaults } from "../env";
+import { DurableAgentRuntime } from "./run-loop";
 import { jsonResponse } from "../shared/http";
+import { DurableObjectSqliteStorage } from "../storage/do-sqlite";
+import { createR2Storage } from "../storage/r2";
+import { SqliteAgentRuntimeStore } from "../sessions/store";
 import {
   handleGatewaySocketMessage,
   initializeGatewaySocket,
@@ -11,11 +15,22 @@ import { createGatewayConnectionState, type GatewayConnectionState } from "../ga
 
 export class AgentObject {
   private readonly connections = new WeakMap<WebSocket, GatewayConnectionState>();
+  private readonly agentRuntime: DurableAgentRuntime;
 
   constructor(
     private readonly state: DurableObjectState,
     private readonly env: ClawflareEnv,
   ) {
+    const sqlite = new DurableObjectSqliteStorage(this.state.storage);
+    sqlite.migrate();
+    this.agentRuntime = new DurableAgentRuntime({
+      env,
+      store: new SqliteAgentRuntimeStore(sqlite),
+      r2: createR2Storage(env),
+      transcriptIndexingQueue: env.TRANSCRIPT_INDEXING_QUEUE,
+      auditQueue: env.AUDIT_EVENTS_QUEUE,
+    });
+
     for (const socket of this.state.getWebSockets()) {
       this.connections.set(socket, restoreConnectionState(socket.deserializeAttachment() as GatewaySocketAttachment | undefined));
     }
@@ -57,7 +72,7 @@ export class AgentObject {
 
   async webSocketMessage(socket: WebSocket, message: ArrayBuffer | string): Promise<void> {
     const connection = this.getConnection(socket);
-    await handleGatewaySocketMessage(socket, connection, this.env, message);
+    await handleGatewaySocketMessage(socket, connection, this.env, message, { agentRuntime: this.agentRuntime });
   }
 
   webSocketClose(socket: WebSocket): void {

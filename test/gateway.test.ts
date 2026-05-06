@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClawflareEnv } from "../src/env";
+import type { AgentRuntime } from "../src/agents/runtime";
 import { dispatchGatewayMethod } from "../src/gateway/methods";
 import { createGatewayConnectionState } from "../src/gateway/state";
 import { handleGatewaySocketMessage, initializeGatewaySocket, type GatewayWebSocket } from "../src/gateway/ws";
@@ -173,5 +174,85 @@ describe("gateway method dispatcher", () => {
         code: "NOT_IMPLEMENTED",
       },
     });
+  });
+
+  it("dispatches agent and agent.wait through the configured runtime", async () => {
+    const state = createGatewayConnectionState({ connId: "conn-1" });
+    await dispatchGatewayMethod(requestFrame("1", "connect", { token: "secret" }), {
+      env,
+      connection: state,
+    });
+    const emitted: string[] = [];
+    const runtime: AgentRuntime = {
+      async startRun(_input, options) {
+        await options?.sink?.({
+          runId: "run-1",
+          sessionKey: "session",
+          seq: 1,
+          phase: "started",
+          payload: {},
+          createdAt: "2026-05-06T00:00:00.000Z",
+        });
+
+        return {
+          type: "agent.accepted",
+          runId: "run-1",
+          sessionKey: "session",
+          sessionId: "session",
+          status: "accepted",
+          acceptedAt: "2026-05-06T00:00:00.000Z",
+        };
+      },
+      async waitForRun(input) {
+        return {
+          type: "agent.wait",
+          runId: input.runId,
+          status: "completed",
+          summary: {
+            outputText: "done",
+          },
+        };
+      },
+      async listSessions() {
+        return { sessions: [] };
+      },
+      async abortRun(input) {
+        return { runId: input.runId, aborted: false };
+      },
+    };
+
+    const accepted = await dispatchGatewayMethod(requestFrame("2", "agent", { message: "hello" }), {
+      env,
+      connection: state,
+      agentRuntime: runtime,
+      emitAgentEvent: (event) => {
+        emitted.push(event.phase);
+      },
+    });
+    const waited = await dispatchGatewayMethod(requestFrame("3", "agent.wait", { runId: "run-1" }), {
+      env,
+      connection: state,
+      agentRuntime: runtime,
+    });
+
+    expect(accepted).toMatchObject({
+      type: "res",
+      id: "2",
+      ok: true,
+      payload: {
+        type: "agent.accepted",
+        runId: "run-1",
+      },
+    });
+    expect(waited).toMatchObject({
+      type: "res",
+      id: "3",
+      ok: true,
+      payload: {
+        type: "agent.wait",
+        status: "completed",
+      },
+    });
+    expect(emitted).toEqual(["started"]);
   });
 });

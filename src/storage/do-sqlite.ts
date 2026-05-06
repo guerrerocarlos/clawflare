@@ -107,7 +107,7 @@ export interface PluginRuntimeStateRecord {
 }
 
 interface SqlExecutor {
-  exec<T = Record<string, unknown>>(query: string, ...bindings: unknown[]): Iterable<T>;
+  exec(query: string, ...bindings: unknown[]): Iterable<Record<string, unknown>>;
 }
 
 export interface DurableSqlStorage {
@@ -164,7 +164,17 @@ export class DurableObjectSqliteStorage {
   }
 
   getSession(sessionKey: string): SessionRecord | null {
-    return first(this.storage.sql.exec<SessionRecord>("SELECT * FROM sessions WHERE session_key = ?", sessionKey));
+    return first(this.storage.sql.exec("SELECT * FROM sessions WHERE session_key = ?", sessionKey) as Iterable<SessionRecord>);
+  }
+
+  listSessions(accountId: string, agentId: string): SessionRecord[] {
+    return all(
+      this.storage.sql.exec(
+        "SELECT * FROM sessions WHERE account_id = ? AND agent_id = ? ORDER BY updated_at DESC",
+        accountId,
+        agentId,
+      ) as Iterable<SessionRecord>,
+    );
   }
 
   insertRun(record: RunRecord): void {
@@ -189,7 +199,34 @@ export class DurableObjectSqliteStorage {
   }
 
   getRun(runId: string): RunRecord | null {
-    return first(this.storage.sql.exec<RunRecord>("SELECT * FROM runs WHERE run_id = ?", runId));
+    return first(this.storage.sql.exec("SELECT * FROM runs WHERE run_id = ?", runId) as Iterable<RunRecord>);
+  }
+
+  updateRunStatus(
+    runId: string,
+    fields: {
+      status: string;
+      summary_json?: string | null;
+      error_json?: string | null;
+      started_at?: string | null;
+      ended_at?: string | null;
+    },
+  ): void {
+    this.storage.sql.exec(
+      `UPDATE runs SET
+         status = ?,
+         summary_json = COALESCE(?, summary_json),
+         error_json = COALESCE(?, error_json),
+         started_at = COALESCE(?, started_at),
+         ended_at = COALESCE(?, ended_at)
+       WHERE run_id = ?`,
+      fields.status,
+      fields.summary_json ?? null,
+      fields.error_json ?? null,
+      fields.started_at ?? null,
+      fields.ended_at ?? null,
+      runId,
+    );
   }
 
   appendRunEvent(record: RunEventRecord): void {
@@ -206,7 +243,7 @@ export class DurableObjectSqliteStorage {
 
   listRunEvents(runId: string): RunEventRecord[] {
     return all(
-      this.storage.sql.exec<RunEventRecord>("SELECT * FROM run_events WHERE run_id = ? ORDER BY seq ASC", runId),
+      this.storage.sql.exec("SELECT * FROM run_events WHERE run_id = ? ORDER BY seq ASC", runId) as Iterable<RunEventRecord>,
     );
   }
 
@@ -230,7 +267,9 @@ export class DurableObjectSqliteStorage {
   }
 
   getWorkspaceIndex(path: string): WorkspaceIndexRecord | null {
-    return first(this.storage.sql.exec<WorkspaceIndexRecord>("SELECT * FROM workspace_index WHERE path = ?", path));
+    return first(
+      this.storage.sql.exec("SELECT * FROM workspace_index WHERE path = ?", path) as Iterable<WorkspaceIndexRecord>,
+    );
   }
 
   setPluginRuntimeState(record: PluginRuntimeStateRecord): void {
@@ -250,10 +289,10 @@ export class DurableObjectSqliteStorage {
 
   getPluginRuntimeState(pluginId: string): PluginRuntimeStateRecord | null {
     return first(
-      this.storage.sql.exec<PluginRuntimeStateRecord>(
+      this.storage.sql.exec(
         "SELECT * FROM plugin_runtime_state WHERE plugin_id = ?",
         pluginId,
-      ),
+      ) as Iterable<PluginRuntimeStateRecord>,
     );
   }
 }

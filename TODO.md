@@ -49,18 +49,18 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 4. Agent Run Loop
 
-- [ ] Define `AgentRuntime` types in `src/agents/runtime.ts`.
-- [ ] Implement session key normalization in `src/sessions/keys.ts`.
-- [ ] Implement session store in `src/sessions/store.ts`.
-- [ ] Implement per-session lane serialization in `src/sessions/lanes.ts`.
-- [ ] Implement run creation, accepted ack, lifecycle start/end/error, and run event persistence.
-- [ ] Implement fake provider for deterministic tests.
-- [ ] Implement prompt assembly skeleton with `<clawflare-runtime>` block.
-- [ ] Implement `agent` method.
-- [ ] Implement `agent.wait` method.
-- [ ] Persist transcript JSONL to R2.
-- [ ] Enqueue transcript indexing and audit queue messages after terminal run state.
-- [ ] Add tests for accepted ack, streaming events, run wait, serialization, and transcript persistence.
+- [x] Define `AgentRuntime` types in `src/agents/runtime.ts`.
+- [x] Implement session key normalization in `src/sessions/keys.ts`.
+- [x] Implement session store in `src/sessions/store.ts`.
+- [x] Implement per-session lane serialization in `src/sessions/lanes.ts`.
+- [x] Implement run creation, accepted ack, lifecycle start/end/error, and run event persistence.
+- [x] Implement fake provider for deterministic tests.
+- [x] Implement prompt assembly skeleton with `<clawflare-runtime>` block.
+- [x] Implement `agent` method.
+- [x] Implement `agent.wait` method.
+- [x] Persist transcript JSONL to R2.
+- [x] Enqueue transcript indexing and audit queue messages after terminal run state.
+- [x] Add tests for accepted ack, streaming events, run wait, serialization, and transcript persistence.
 
 ## 5. Provider Runtime
 

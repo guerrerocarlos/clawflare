@@ -1,5 +1,6 @@
 import type { ClawflareEnv } from "../env";
 import { getRuntimeDefaults } from "../env";
+import type { AgentEventSink, AgentRunInput, AgentRuntime, AgentWaitInput } from "../agents/runtime";
 import { createHelloOk, protocolVersion, supportedEvents, supportedMethods } from "../protocol/connect";
 import {
   badRequest,
@@ -15,6 +16,8 @@ import { markAuthenticated, type GatewayConnectionState } from "./state";
 export interface GatewayMethodContext {
   env: ClawflareEnv;
   connection: GatewayConnectionState;
+  agentRuntime?: AgentRuntime;
+  emitAgentEvent?: AgentEventSink;
 }
 
 function getObjectParams(params: unknown): Record<string, unknown> {
@@ -75,6 +78,14 @@ function executeHealth(context: GatewayMethodContext): unknown {
   };
 }
 
+function requireAgentRuntime(context: GatewayMethodContext, method: string): AgentRuntime {
+  if (!context.agentRuntime) {
+    throw methodNotImplemented(method);
+  }
+
+  return context.agentRuntime;
+}
+
 function methodNotImplemented(method: string): ClawflareError {
   return new ClawflareError(
     createGatewayError({
@@ -86,12 +97,133 @@ function methodNotImplemented(method: string): ClawflareError {
   );
 }
 
+function parseMessages(params: Record<string, unknown>): AgentRunInput["messages"] {
+  if (Array.isArray(params.messages)) {
+    return params.messages.map((message) => {
+      if (typeof message !== "object" || message === null) {
+        throw badRequest("messages entries must be objects.");
+      }
+
+      const item = message as Record<string, unknown>;
+
+      if (typeof item.role !== "string" || typeof item.content !== "string") {
+        throw badRequest("messages entries must include string role and content.");
+      }
+
+      return {
+        role: item.role as AgentRunInput["messages"][number]["role"],
+        content: item.content,
+      };
+    });
+  }
+
+  if (typeof params.message === "string") {
+    return [{ role: "user", content: params.message }];
+  }
+
+  if (typeof params.prompt === "string") {
+    return [{ role: "user", content: params.prompt }];
+  }
+
+  throw badRequest("agent requires messages, message, or prompt.");
+}
+
+function parseAgentRunInput(params: Record<string, unknown>, connection: GatewayConnectionState): AgentRunInput {
+  const session = typeof params.session === "object" && params.session !== null ? (params.session as Record<string, unknown>) : undefined;
+  const input: AgentRunInput = {
+    session: {
+      channel: typeof session?.channel === "string" ? session.channel : "gateway",
+      peerId: typeof session?.peerId === "string" ? session.peerId : connection.connId,
+      ...(typeof session?.threadId === "string" ? { threadId: session.threadId } : {}),
+    },
+    messages: parseMessages(params),
+  };
+
+  if (typeof params.accountId === "string") {
+    input.accountId = params.accountId;
+  }
+
+  if (typeof params.agentId === "string") {
+    input.agentId = params.agentId;
+  }
+
+  if (typeof params.sessionKey === "string") {
+    input.sessionKey = params.sessionKey;
+  }
+
+  if (typeof params.model === "string") {
+    input.model = params.model;
+  }
+
+  if (typeof params.idempotencyKey === "string") {
+    input.idempotencyKey = params.idempotencyKey;
+  }
+
+  if (typeof params.metadata === "object" && params.metadata !== null) {
+    input.metadata = params.metadata as Record<string, unknown>;
+  }
+
+  return input;
+}
+
+async function executeAgent(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
+  requireAuthenticated(context.connection);
+  const runtime = requireAgentRuntime(context, "agent");
+  const params = getObjectParams(request.params);
+
+  return await runtime.startRun(
+    parseAgentRunInput(params, context.connection),
+    context.emitAgentEvent === undefined ? undefined : { sink: context.emitAgentEvent },
+  );
+}
+
+async function executeAgentWait(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
+  requireAuthenticated(context.connection);
+  const runtime = requireAgentRuntime(context, "agent.wait");
+  const params = getObjectParams(request.params);
+
+  if (typeof params.runId !== "string") {
+    throw badRequest("agent.wait requires runId.");
+  }
+
+  const waitInput: AgentWaitInput = {
+    runId: params.runId,
+    ...(typeof params.timeoutMs === "number" ? { timeoutMs: params.timeoutMs } : {}),
+  };
+
+  return await runtime.waitForRun(waitInput);
+}
+
+async function executeSessionsList(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
+  requireAuthenticated(context.connection);
+  const runtime = requireAgentRuntime(context, "sessions.list");
+  const params = getObjectParams(request.params);
+
+  const input: { accountId?: string; agentId?: string } = {};
+
+  if (typeof params.accountId === "string") {
+    input.accountId = params.accountId;
+  }
+
+  if (typeof params.agentId === "string") {
+    input.agentId = params.agentId;
+  }
+
+  return await runtime.listSessions(input);
+}
+
 export async function executeGatewayMethod(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
   switch (request.method) {
     case "connect":
       return executeConnect(request, context);
     case "health":
       return executeHealth(context);
+    case "agent":
+      return await executeAgent(request, context);
+    case "agent.wait":
+      return await executeAgentWait(request, context);
+    case "sessions.list":
+      return await executeSessionsList(request, context);
     default:
       if (supportedMethods.includes(request.method as (typeof supportedMethods)[number])) {
         requireAuthenticated(context.connection);
