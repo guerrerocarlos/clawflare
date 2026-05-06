@@ -28,14 +28,14 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 2. Durable Object Gateway
 
-- [ ] Implement `src/agents/agent-object.ts` as the primary Durable Object.
-- [ ] Add WebSocket accept/hibernation-compatible connection handling.
-- [ ] Send `connect.challenge` after WS connection opens.
-- [ ] Implement `connect` method with shared-token auth.
-- [ ] Implement connection state, sequence numbers, and heartbeat/tick events.
-- [ ] Implement `health` method.
-- [ ] Implement method dispatcher in `src/gateway/methods.ts`.
-- [ ] Add tests for WS challenge, connect success, connect failure, health, and unknown method errors.
+- [x] Implement `src/agents/agent-object.ts` as the primary Durable Object.
+- [x] Add WebSocket accept/hibernation-compatible connection handling.
+- [x] Send `connect.challenge` after WS connection opens.
+- [x] Implement `connect` method with shared-token auth.
+- [x] Implement connection state, sequence numbers, and heartbeat/tick events.
+- [x] Implement `health` method.
+- [x] Implement method dispatcher in `src/gateway/methods.ts`.
+- [x] Add tests for WS challenge, connect success, connect failure, health, and unknown method errors.
 
 ## 3. Storage Foundations
 
