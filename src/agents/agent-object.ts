@@ -55,6 +55,17 @@ export class AgentObject {
       });
     }
 
+    if (url.pathname === "/__clawflare/agent/openai-run" && request.method === "POST") {
+      const body = (await request.json()) as { input?: unknown };
+      const accepted = await this.agentRuntime.startRun(body.input as Parameters<typeof this.agentRuntime.startRun>[0]);
+      const result = await this.agentRuntime.waitForRun({ runId: accepted.runId });
+
+      return jsonResponse({
+        accepted,
+        result,
+      });
+    }
+
     return jsonResponse(
       {
         ok: true,

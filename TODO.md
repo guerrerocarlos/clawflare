@@ -78,13 +78,13 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 6. OpenAI-Compatible HTTP
 
-- [ ] Implement `GET /v1/models`.
-- [ ] Implement `GET /v1/models/:id`.
-- [ ] Implement non-streaming `POST /v1/chat/completions`.
-- [ ] Implement non-streaming `POST /v1/responses`.
-- [ ] Map HTTP requests into the AgentObject run path.
-- [ ] Add OpenAI-compatible response fixtures.
-- [ ] Add tests for models, chat completions, responses, auth failure, and provider failure.
+- [x] Implement `GET /v1/models`.
+- [x] Implement `GET /v1/models/:id`.
+- [x] Implement non-streaming `POST /v1/chat/completions`.
+- [x] Implement non-streaming `POST /v1/responses`.
+- [x] Map HTTP requests into the AgentObject run path.
+- [x] Add OpenAI-compatible response fixtures.
+- [x] Add tests for models, chat completions, responses, auth failure, and provider failure.
 
 ## 7. Queue Infrastructure
 

@@ -1,0 +1,23 @@
+{
+  "id": "resp_run-1",
+  "object": "response",
+  "created_at": 0,
+  "status": "completed",
+  "model": "fake/deterministic",
+  "output": [
+    {
+      "id": "msg_run-1",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "assistant output"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "total_tokens": 7
+  }
+}

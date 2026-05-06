@@ -3,6 +3,7 @@ import { getRuntimeDefaults } from "../env";
 import { createHelloOk, serverVersion, supportedEvents, supportedMethods } from "../protocol/connect";
 import { badRequest, methodNotAllowed, notFound, notImplemented, toClawflareError } from "../protocol/errors";
 import { jsonResponse } from "../shared/http";
+import { handleChatCompletions, handleModelGet, handleModelsList, handleResponses } from "./openai";
 
 type RouteHandler = (request: Request, env: ClawflareEnv, ctx?: ExecutionContext) => Response | Promise<Response>;
 
@@ -81,9 +82,9 @@ const reservedRoutes: ReservedRoute[] = [
   { method: "GET", path: "/", handler: routeRoot },
   { method: "GET", path: "/healthz", handler: routeHealth },
   { method: "GET", path: "/ws", handler: routeWebSocket },
-  { method: "GET", path: "/v1/models", handler: reservedNotImplemented },
-  { method: "POST", path: "/v1/chat/completions", handler: reservedNotImplemented },
-  { method: "POST", path: "/v1/responses", handler: reservedNotImplemented },
+  { method: "GET", path: "/v1/models", handler: handleModelsList },
+  { method: "POST", path: "/v1/chat/completions", handler: handleChatCompletions },
+  { method: "POST", path: "/v1/responses", handler: handleResponses },
   { method: "POST", path: "/webhook/telegram", handler: reservedNotImplemented },
   { method: "POST", path: "/tools/invoke", handler: reservedNotImplemented },
 ];
@@ -96,7 +97,7 @@ function matchDynamicRoute(method: string, path: string): ReservedRoute | undefi
     return {
       method,
       path,
-      handler: reservedNotImplemented,
+      handler: (request, env) => handleModelGet(request, env, decodeURIComponent(path.slice("/v1/models/".length))),
     };
   }
 

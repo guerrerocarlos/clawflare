@@ -20,8 +20,8 @@ describe("entry worker", () => {
     });
   });
 
-  it("returns structured placeholders for reserved routes", async () => {
-    const response = await handleFetch(new Request("https://example.test/v1/models"), {} as ClawflareEnv);
+  it("returns structured placeholders for reserved non-OpenAI routes", async () => {
+    const response = await handleFetch(new Request("https://example.test/tools/invoke", { method: "POST" }), {} as ClawflareEnv);
     const payload = await response.json();
 
     expect(response.status).toBe(501);
@@ -30,7 +30,7 @@ describe("entry worker", () => {
       error: {
         code: "NOT_IMPLEMENTED",
         details: {
-          route: "GET /v1/models",
+          route: "POST /tools/invoke",
         },
       },
     });

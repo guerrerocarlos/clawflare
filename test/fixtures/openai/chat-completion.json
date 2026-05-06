@@ -1,0 +1,19 @@
+{
+  "id": "chatcmpl-run-1",
+  "object": "chat.completion",
+  "created": 0,
+  "model": "fake/deterministic",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "assistant output"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "total_tokens": 7
+  }
+}

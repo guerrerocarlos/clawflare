@@ -26,10 +26,6 @@ describe("router", () => {
 
   it("dispatches reserved compatibility routes to structured NOT_IMPLEMENTED responses", async () => {
     const routes = [
-      ["GET", "/v1/models"],
-      ["GET", "/v1/models/openai/gpt-test"],
-      ["POST", "/v1/chat/completions"],
-      ["POST", "/v1/responses"],
       ["POST", "/webhook/telegram"],
       ["POST", "/tools/invoke"],
     ] as const;
