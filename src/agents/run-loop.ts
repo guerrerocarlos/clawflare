@@ -6,6 +6,7 @@ import { normalizeSessionRef } from "../sessions/keys";
 import { SessionLanes } from "../sessions/lanes";
 import type { AgentRuntimeStore } from "../sessions/store";
 import { runEventsKey, transcriptKey } from "../storage/keys";
+import type { ClawHubSkill } from "../plugins/types";
 import { buildPrompt } from "./prompt";
 import type {
   AgentEventSink,
@@ -40,6 +41,7 @@ export interface DurableAgentRuntimeOptions {
   provider?: ProviderRuntime;
   transcriptIndexingQueue?: QueueLike;
   auditQueue?: QueueLike;
+  enabledSkills?: () => Promise<ClawHubSkill[]>;
   now?: () => Date;
   runId?: () => string;
 }
@@ -217,7 +219,7 @@ export class DurableAgentRuntime implements AgentRuntime {
         accountId: session.accountId,
         agentId: session.agentId,
         sessionKey: session.sessionKey,
-      });
+      }, { skills: (await this.options.enabledSkills?.()) ?? [] });
       const providerOutput = await this.provider.complete(
         { model: input.model ?? "deterministic", prompt, messages: input.messages },
         { env: this.options.env, fetcher: fetch },

@@ -151,21 +151,21 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 11. ClawHub Skills And Plugin Planning
 
-- [ ] Implement `src/plugins/clawhub-client.ts`.
-- [ ] Implement ClawHub search with KV cache.
-- [ ] Implement `src/plugins/resolver.ts` for `clawhub:<package>`, bare names, and optional exact versions.
-- [ ] Implement manifest parsing for skills and native plugins.
-- [ ] Implement plugin archive quarantine in R2.
-- [ ] Implement static scanner for forbidden APIs and package scripts.
-- [ ] Implement `PluginInstallPlan` schema.
-- [ ] Implement `plugins.search`.
-- [ ] Implement `plugins.inspect`.
-- [ ] Implement `plugins.planInstall`.
-- [ ] Implement `plugins.install` for ClawHub skills only.
-- [ ] Implement `plugins.enable` for installed skills.
-- [ ] Update prompt assembly to include enabled ClawHub skills.
-- [ ] Add Telegram `/plugin install` approval flow around `plugins.planInstall`.
-- [ ] Add tests for skill search, plan, install, enable, prompt inclusion, and native-plugin fail-closed behavior.
+- [x] Implement `src/plugins/clawhub-client.ts`.
+- [x] Implement ClawHub search with KV cache.
+- [x] Implement `src/plugins/resolver.ts` for `clawhub:<package>`, bare names, and optional exact versions.
+- [x] Implement manifest parsing for skills and native plugins.
+- [x] Implement plugin archive quarantine in R2.
+- [x] Implement static scanner for forbidden APIs and package scripts.
+- [x] Implement `PluginInstallPlan` schema.
+- [x] Implement `plugins.search`.
+- [x] Implement `plugins.inspect`.
+- [x] Implement `plugins.planInstall`.
+- [x] Implement `plugins.install` for ClawHub skills only.
+- [x] Implement `plugins.enable` for installed skills.
+- [x] Update prompt assembly to include enabled ClawHub skills.
+- [x] Add Telegram `/plugin install` approval flow around `plugins.planInstall`.
+- [x] Add tests for skill search, plan, install, enable, prompt inclusion, and native-plugin fail-closed behavior.
 
 ## 12. Security, Audit, And Doctor
 

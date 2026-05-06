@@ -2,6 +2,7 @@ import type { ClawflareEnv } from "../env";
 import { getRuntimeDefaults } from "../env";
 import type { AgentEventSink, AgentRunInput, AgentRuntime, AgentWaitInput } from "../agents/runtime";
 import { createHelloOk, protocolVersion, supportedEvents, supportedMethods } from "../protocol/connect";
+import type { ClawflarePluginRuntime } from "../plugins/runtime";
 import { createDefaultToolRegistry } from "../tools/registry";
 import {
   badRequest,
@@ -19,6 +20,7 @@ export interface GatewayMethodContext {
   connection: GatewayConnectionState;
   agentRuntime?: AgentRuntime;
   emitAgentEvent?: AgentEventSink;
+  pluginRuntime?: ClawflarePluginRuntime;
 }
 
 function getObjectParams(params: unknown): Record<string, unknown> {
@@ -85,6 +87,14 @@ function requireAgentRuntime(context: GatewayMethodContext, method: string): Age
   }
 
   return context.agentRuntime;
+}
+
+function requirePluginRuntime(context: GatewayMethodContext, method: string): ClawflarePluginRuntime {
+  if (!context.pluginRuntime) {
+    throw methodNotImplemented(method);
+  }
+
+  return context.pluginRuntime;
 }
 
 function methodNotImplemented(method: string): ClawflareError {
@@ -213,6 +223,42 @@ async function executeSessionsList(request: GatewayRequest, context: GatewayMeth
   return await runtime.listSessions(input);
 }
 
+async function executePluginMethod(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
+  requireAuthenticated(context.connection);
+  const runtime = requirePluginRuntime(context, request.method);
+  const params = getObjectParams(request.params);
+
+  switch (request.method) {
+    case "plugins.search":
+      if (typeof params.query !== "string") {
+        throw badRequest("plugins.search requires query.");
+      }
+      return { packages: await runtime.search(params.query) };
+    case "plugins.inspect":
+      if (typeof params.ref !== "string") {
+        throw badRequest("plugins.inspect requires ref.");
+      }
+      return { manifest: await runtime.inspect(params.ref) };
+    case "plugins.planInstall":
+      if (typeof params.ref !== "string") {
+        throw badRequest("plugins.planInstall requires ref.");
+      }
+      return { plan: await runtime.planInstall(params.ref) };
+    case "plugins.install":
+      if (typeof params.ref !== "string") {
+        throw badRequest("plugins.install requires ref.");
+      }
+      return { installed: await runtime.install(params.ref) };
+    case "plugins.enable":
+      if (typeof params.pluginId !== "string") {
+        throw badRequest("plugins.enable requires pluginId.");
+      }
+      return { enabled: await runtime.enable(params.pluginId) };
+    default:
+      throw methodNotImplemented(request.method);
+  }
+}
+
 export async function executeGatewayMethod(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
   switch (request.method) {
     case "connect":
@@ -228,6 +274,12 @@ export async function executeGatewayMethod(request: GatewayRequest, context: Gat
     case "tools.catalog":
       requireAuthenticated(context.connection);
       return { tools: createDefaultToolRegistry().catalog() };
+    case "plugins.search":
+    case "plugins.inspect":
+    case "plugins.planInstall":
+    case "plugins.install":
+    case "plugins.enable":
+      return await executePluginMethod(request, context);
     default:
       if (supportedMethods.includes(request.method as (typeof supportedMethods)[number])) {
         requireAuthenticated(context.connection);

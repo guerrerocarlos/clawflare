@@ -5,6 +5,8 @@ import { jsonResponse } from "../shared/http";
 import { DurableObjectSqliteStorage } from "../storage/do-sqlite";
 import { createR2Storage } from "../storage/r2";
 import { SqliteAgentRuntimeStore } from "../sessions/store";
+import { ClawflarePluginRuntime } from "../plugins/runtime";
+import { MemoryPluginStore } from "../plugins/registry";
 import {
   handleGatewaySocketMessage,
   initializeGatewaySocket,
@@ -16,6 +18,7 @@ import { createGatewayConnectionState, type GatewayConnectionState } from "../ga
 export class AgentObject {
   private readonly connections = new WeakMap<WebSocket, GatewayConnectionState>();
   private readonly agentRuntime: DurableAgentRuntime;
+  private readonly pluginRuntime: ClawflarePluginRuntime;
 
   constructor(
     private readonly state: DurableObjectState,
@@ -23,12 +26,23 @@ export class AgentObject {
   ) {
     const sqlite = new DurableObjectSqliteStorage(this.state.storage);
     sqlite.migrate();
+    const r2 = createR2Storage(env);
+    const pluginStore = new MemoryPluginStore();
+    const defaults = getRuntimeDefaults(env);
+    this.pluginRuntime = new ClawflarePluginRuntime({
+      env,
+      accountId: defaults.accountId,
+      agentId: defaults.agentId,
+      store: pluginStore,
+      r2,
+    });
     this.agentRuntime = new DurableAgentRuntime({
       env,
       store: new SqliteAgentRuntimeStore(sqlite),
-      r2: createR2Storage(env),
+      r2,
       transcriptIndexingQueue: env.TRANSCRIPT_INDEXING_QUEUE,
       auditQueue: env.AUDIT_EVENTS_QUEUE,
+      enabledSkills: () => this.pluginRuntime.enabledSkills(),
     });
 
     for (const socket of this.state.getWebSockets()) {
@@ -83,7 +97,10 @@ export class AgentObject {
 
   async webSocketMessage(socket: WebSocket, message: ArrayBuffer | string): Promise<void> {
     const connection = this.getConnection(socket);
-    await handleGatewaySocketMessage(socket, connection, this.env, message, { agentRuntime: this.agentRuntime });
+    await handleGatewaySocketMessage(socket, connection, this.env, message, {
+      agentRuntime: this.agentRuntime,
+      pluginRuntime: this.pluginRuntime,
+    });
   }
 
   webSocketClose(socket: WebSocket): void {

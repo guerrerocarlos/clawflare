@@ -1,6 +1,12 @@
 import type { AgentRunInput } from "./runtime";
+import type { ClawHubSkill } from "../plugins/types";
+import { renderEnabledSkillsBlock } from "../plugins/prompt";
 
-export function buildPrompt(input: AgentRunInput, runtime: { accountId: string; agentId: string; sessionKey: string }): string {
+export function buildPrompt(
+  input: AgentRunInput,
+  runtime: { accountId: string; agentId: string; sessionKey: string },
+  options?: { skills?: ClawHubSkill[] },
+): string {
   const runtimeBlock = [
     "<clawflare-runtime>",
     JSON.stringify(
@@ -18,6 +24,7 @@ export function buildPrompt(input: AgentRunInput, runtime: { accountId: string; 
   ].join("\n");
 
   const messages = input.messages.map((message) => `${message.role}: ${message.content}`).join("\n");
+  const skills = renderEnabledSkillsBlock(options?.skills ?? []);
 
-  return `${runtimeBlock}\n\n${messages}`;
+  return [runtimeBlock, skills, messages].filter((part) => part.length > 0).join("\n\n");
 }

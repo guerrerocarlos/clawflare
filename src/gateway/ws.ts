@@ -1,5 +1,6 @@
 import type { ClawflareEnv } from "../env";
 import type { AgentRuntime } from "../agents/runtime";
+import type { ClawflarePluginRuntime } from "../plugins/runtime";
 import { createConnectChallenge } from "../protocol/connect";
 import { badRequest, toClawflareError } from "../protocol/errors";
 import {
@@ -32,6 +33,7 @@ export interface GatewaySocketAttachment {
 
 export interface GatewaySocketMessageOptions {
   agentRuntime?: AgentRuntime;
+  pluginRuntime?: ClawflarePluginRuntime;
 }
 
 function serialize(state: GatewayConnectionState): GatewaySocketAttachment {
@@ -126,6 +128,10 @@ export async function handleGatewaySocketMessage(
 
     if (options?.agentRuntime !== undefined) {
       methodContext.agentRuntime = options.agentRuntime;
+    }
+
+    if (options?.pluginRuntime !== undefined) {
+      methodContext.pluginRuntime = options.pluginRuntime;
     }
 
     const response = await dispatchGatewayMethod(frame, methodContext);

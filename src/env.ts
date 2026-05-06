@@ -30,6 +30,7 @@ export interface ClawflareEnv {
   CLOUDFLARE_AI_GATEWAY_API_KEY?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_AI_GATEWAY_NAME?: string;
+  CLAWHUB_API_BASE_URL?: string;
 }
 
 export interface RuntimeDefaults {
