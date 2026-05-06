@@ -3,7 +3,8 @@ import type { ClawflareEnv, QueuePayload } from "../src/env";
 import { buildPrompt } from "../src/agents/prompt";
 import { DurableAgentRuntime } from "../src/agents/run-loop";
 import type { AgentMessage } from "../src/agents/runtime";
-import { FakeProviderRuntime, type FakeProviderInput, type FakeProviderOutput } from "../src/providers/fake";
+import { FakeProviderRuntime, type FakeProviderOutput } from "../src/providers/fake";
+import type { ProviderCompleteInput, ProviderCompleteOutput } from "../src/providers/runtime";
 import { SessionLanes } from "../src/sessions/lanes";
 import { normalizeSessionRef } from "../src/sessions/keys";
 import { MemoryAgentRuntimeStore } from "../src/sessions/store";
@@ -36,7 +37,7 @@ class RecordingProvider extends FakeProviderRuntime {
     super();
   }
 
-  override async complete(input: FakeProviderInput): Promise<FakeProviderOutput> {
+  override async complete(input: ProviderCompleteInput): Promise<ProviderCompleteOutput & FakeProviderOutput> {
     const label = input.messages.at(-1)?.content ?? "none";
     this.order.push(`start:${label}`);
     await new Promise((resolve) => setTimeout(resolve, 0));

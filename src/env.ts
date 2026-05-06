@@ -21,8 +21,12 @@ export interface ClawflareEnv {
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
   OPENAI_API_KEY?: string;
+  OPENAI_COMPATIBLE_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_COMPATIBLE_BASE_URL?: string;
   CLOUDFLARE_AI_GATEWAY_API_KEY?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_AI_GATEWAY_NAME?: string;
 }
 
 export interface RuntimeDefaults {

@@ -64,17 +64,17 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 5. Provider Runtime
 
-- [ ] Define `ProviderRuntime` interface.
-- [ ] Implement provider registry.
-- [ ] Implement `openai-compatible` provider.
-- [ ] Implement `anthropic-compatible` provider if needed for MVP model choice.
-- [ ] Implement `workers-ai` provider wrapper.
-- [ ] Implement `cloudflare-ai-gateway` provider using OpenClaw plugin behavior as reference.
-- [ ] Implement model ref parsing as `provider/model`.
-- [ ] Implement secret resolution without logging values.
-- [ ] Implement provider auth status without exposing secrets.
-- [ ] Implement normalized provider errors.
-- [ ] Add provider unit tests with mocked fetch.
+- [x] Define `ProviderRuntime` interface.
+- [x] Implement provider registry.
+- [x] Implement `openai-compatible` provider.
+- [x] Implement `anthropic-compatible` provider if needed for MVP model choice.
+- [x] Implement `workers-ai` provider wrapper.
+- [x] Implement `cloudflare-ai-gateway` provider using OpenClaw plugin behavior as reference.
+- [x] Implement model ref parsing as `provider/model`.
+- [x] Implement secret resolution without logging values.
+- [x] Implement provider auth status without exposing secrets.
+- [x] Implement normalized provider errors.
+- [x] Add provider unit tests with mocked fetch.
 
 ## 6. OpenAI-Compatible HTTP
 

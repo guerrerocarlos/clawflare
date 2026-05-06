@@ -1,6 +1,7 @@
 import type { ClawflareEnv, QueuePayload } from "../env";
 import { getRuntimeDefaults } from "../env";
 import { FakeProviderRuntime } from "../providers/fake";
+import type { ProviderRuntime } from "../providers/runtime";
 import { normalizeSessionRef } from "../sessions/keys";
 import { SessionLanes } from "../sessions/lanes";
 import type { AgentRuntimeStore } from "../sessions/store";
@@ -36,7 +37,7 @@ export interface DurableAgentRuntimeOptions {
   store: AgentRuntimeStore;
   r2: AgentR2Storage;
   lanes?: SessionLanes;
-  provider?: FakeProviderRuntime;
+  provider?: ProviderRuntime;
   transcriptIndexingQueue?: QueueLike;
   auditQueue?: QueueLike;
   now?: () => Date;
@@ -49,7 +50,7 @@ interface RunCompletion {
 
 export class DurableAgentRuntime implements AgentRuntime {
   private readonly lanes: SessionLanes;
-  private readonly provider: FakeProviderRuntime;
+  private readonly provider: ProviderRuntime;
   private readonly completions = new Map<string, RunCompletion>();
   private readonly now: () => Date;
   private readonly runId: () => string;
@@ -217,15 +218,21 @@ export class DurableAgentRuntime implements AgentRuntime {
         agentId: session.agentId,
         sessionKey: session.sessionKey,
       });
-      const providerOutput = await this.provider.complete({ prompt, messages: input.messages });
+      const providerOutput = await this.provider.complete(
+        { model: input.model ?? "deterministic", prompt, messages: input.messages },
+        { env: this.options.env, fetcher: fetch },
+      );
       await emit("assistant", { text: providerOutput.text, usage: providerOutput.usage });
 
       const endedAt = this.now().toISOString();
       const summary: AgentRunSummary = {
         outputText: providerOutput.text,
         transcriptR2Key: transcriptKey({ ...session }),
-        usage: providerOutput.usage,
       };
+
+      if (providerOutput.usage !== undefined) {
+        summary.usage = providerOutput.usage;
+      }
       await this.options.store.updateRunStatus(accepted.runId, {
         status: "completed",
         summary_json: JSON.stringify(summary),

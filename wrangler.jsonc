@@ -49,7 +49,8 @@
   "vars": {
     "CLAWFLARE_ENV": "dev",
     "CLAWFLARE_DEFAULT_ACCOUNT_ID": "local",
-    "CLAWFLARE_DEFAULT_AGENT_ID": "main"
+    "CLAWFLARE_DEFAULT_AGENT_ID": "main",
+    "CLOUDFLARE_AI_GATEWAY_NAME": "clawflare"
   },
   // Secrets are configured with `wrangler secret put`.
   // Required later: CLAWFLARE_GATEWAY_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
