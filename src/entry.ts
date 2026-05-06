@@ -1,65 +1,9 @@
 import type { ClawflareEnv, QueuePayload } from "./env";
 import { getRuntimeDefaults } from "./env";
+import { routeRequest } from "./router";
+import { jsonResponse } from "./shared/http";
 
-const jsonHeaders = {
-  "content-type": "application/json; charset=utf-8",
-} as const;
-
-export function jsonResponse(payload: unknown, init?: ResponseInit): Response {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: {
-      ...jsonHeaders,
-      ...init?.headers,
-    },
-  });
-}
-
-export function getAgentObjectStub(env: ClawflareEnv): DurableObjectStub {
-  const defaults = getRuntimeDefaults(env);
-  const id = env.AGENT_OBJECT.idFromName(`${defaults.accountId}:${defaults.agentId}`);
-  return env.AGENT_OBJECT.get(id);
-}
-
-export async function handleFetch(
-  request: Request,
-  env: ClawflareEnv,
-  _ctx?: ExecutionContext,
-): Promise<Response> {
-  const url = new URL(request.url);
-
-  if (request.method === "GET" && url.pathname === "/healthz") {
-    return jsonResponse({
-      ok: true,
-      service: "clawflare",
-      runtime: "cloudflare-workers",
-      version: "0.0.0",
-      defaults: getRuntimeDefaults(env),
-    });
-  }
-
-  if (request.method === "GET" && url.pathname === "/") {
-    return new Response("Clawflare debug surface placeholder\n", {
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
-  }
-
-  if (url.pathname === "/ws") {
-    return getAgentObjectStub(env).fetch(request);
-  }
-
-  return jsonResponse(
-    {
-      ok: false,
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Route is reserved for the OpenClaw-compatible MVP surface but is not implemented yet.",
-        route: `${request.method} ${url.pathname}`,
-      },
-    },
-    { status: 501 },
-  );
-}
+export const handleFetch = routeRequest;
 
 export class AgentObject {
   constructor(

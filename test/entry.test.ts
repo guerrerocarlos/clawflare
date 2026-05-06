@@ -29,7 +29,9 @@ describe("entry worker", () => {
       ok: false,
       error: {
         code: "NOT_IMPLEMENTED",
-        route: "GET /v1/models",
+        details: {
+          route: "GET /v1/models",
+        },
       },
     });
   });

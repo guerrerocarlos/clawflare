@@ -17,14 +17,14 @@ This is the execution checklist for the approved MVP implementation. Work throug
 
 ## 1. Core Protocol And Routing
 
-- [ ] Implement `src/protocol/frames.ts` for OpenClaw-compatible `req`, `res`, and `event` frames.
-- [ ] Implement `src/protocol/errors.ts` with typed errors such as `UNAUTHORIZED`, `BAD_REQUEST`, `NOT_IMPLEMENTED`, `CONFLICT`, and `INTERNAL`.
-- [ ] Implement `src/protocol/connect.ts` with `connect.challenge` and MVP `hello-ok`.
-- [ ] Implement `src/router/index.ts`.
-- [ ] Implement `GET /healthz`.
-- [ ] Implement basic route dispatch for `/ws`, `/v1/models`, `/v1/chat/completions`, `/v1/responses`, `/webhook/telegram`, and `/tools/invoke`.
-- [ ] Return structured `NOT_IMPLEMENTED` for known-but-unsupported compatibility routes.
-- [ ] Add protocol unit tests and route smoke tests.
+- [x] Implement `src/protocol/frames.ts` for OpenClaw-compatible `req`, `res`, and `event` frames.
+- [x] Implement `src/protocol/errors.ts` with typed errors such as `UNAUTHORIZED`, `BAD_REQUEST`, `NOT_IMPLEMENTED`, `CONFLICT`, and `INTERNAL`.
+- [x] Implement `src/protocol/connect.ts` with `connect.challenge` and MVP `hello-ok`.
+- [x] Implement `src/router/index.ts`.
+- [x] Implement `GET /healthz`.
+- [x] Implement basic route dispatch for `/ws`, `/v1/models`, `/v1/chat/completions`, `/v1/responses`, `/webhook/telegram`, and `/tools/invoke`.
+- [x] Return structured `NOT_IMPLEMENTED` for known-but-unsupported compatibility routes.
+- [x] Add protocol unit tests and route smoke tests.
 
 ## 2. Durable Object Gateway
 
