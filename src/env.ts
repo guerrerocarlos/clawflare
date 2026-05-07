@@ -15,6 +15,7 @@ export interface ClawflareEnv {
   MEMORY_INDEX: VectorizeIndex;
   AI: Ai;
   CLAWFLARE_ENV?: string;
+  CLAWFLARE_PUBLIC_BASE_URL?: string;
   CLAWFLARE_DEFAULT_ACCOUNT_ID?: string;
   CLAWFLARE_DEFAULT_AGENT_ID?: string;
   CLAWFLARE_GATEWAY_TOKEN?: string;

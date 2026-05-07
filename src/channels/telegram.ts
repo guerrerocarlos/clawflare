@@ -46,6 +46,14 @@ function json(payload: unknown, status = 200): Response {
   });
 }
 
+function configuredTelegramWebhookUrl(env: ClawflareEnv): string | null {
+  if (!env.CLAWFLARE_PUBLIC_BASE_URL) {
+    return null;
+  }
+
+  return new URL("/webhook/telegram", env.CLAWFLARE_PUBLIC_BASE_URL).toString();
+}
+
 function authControl(request: Request, env: ClawflareEnv): Response | null {
   const expected = env.CLAWFLARE_GATEWAY_TOKEN;
   const authorization = request.headers.get("authorization");
@@ -269,6 +277,7 @@ export async function handleTelegramStatus(request: Request, env: ClawflareEnv):
       botTokenConfigured: Boolean(env.TELEGRAM_BOT_TOKEN),
       webhookSecretConfigured: Boolean(env.TELEGRAM_WEBHOOK_SECRET),
       botUsername: env.TELEGRAM_BOT_USERNAME ?? null,
+      webhookUrl: configuredTelegramWebhookUrl(env),
     },
   });
 }
@@ -284,9 +293,10 @@ export async function handleTelegramSetWebhook(request: Request, env: ClawflareE
     return json({ ok: false, error: { code: "TELEGRAM_NOT_CONFIGURED" } }, 400);
   }
 
-  const body = (await request.json()) as { url?: string };
+  const body = request.headers.get("content-length") === "0" ? {} : ((await request.json()) as { url?: string });
+  const webhookUrl = body.url ?? configuredTelegramWebhookUrl(env);
 
-  if (!body.url) {
+  if (!webhookUrl) {
     return json({ ok: false, error: { code: "BAD_REQUEST", message: "url is required." } }, 400);
   }
 
@@ -294,7 +304,7 @@ export async function handleTelegramSetWebhook(request: Request, env: ClawflareE
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      url: body.url,
+      url: webhookUrl,
       secret_token: env.TELEGRAM_WEBHOOK_SECRET,
     }),
   });

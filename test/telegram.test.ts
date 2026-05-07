@@ -55,6 +55,7 @@ function createTelegramEnv(options?: { allowed?: string; botResponse?: string; q
 
   return {
     CLAWFLARE_GATEWAY_TOKEN: "token",
+    CLAWFLARE_PUBLIC_BASE_URL: "https://clawflare.omattic.com",
     CLAWFLARE_DEFAULT_ACCOUNT_ID: "acct",
     CLAWFLARE_DEFAULT_AGENT_ID: "agent",
     TELEGRAM_BOT_TOKEN: "telegram-token",
@@ -232,6 +233,7 @@ describe("telegram control routes", () => {
       telegram: {
         botTokenConfigured: true,
         webhookSecretConfigured: true,
+        webhookUrl: "https://clawflare.omattic.com/webhook/telegram",
       },
     });
   });
@@ -258,6 +260,33 @@ describe("telegram control routes", () => {
     expect(fetchCalls[0]?.input.toString()).toBe("https://api.telegram.org/bottelegram-token/setWebhook");
     expect(JSON.parse(fetchCalls[0]?.init?.body as string)).toMatchObject({
       url: "https://example.test/webhook/telegram",
+      secret_token: "telegram-secret",
+    });
+  });
+
+  it("defaults the Telegram webhook to the public base URL", async () => {
+    const fetchCalls: Array<{ input: RequestInfo | URL; init: RequestInit | undefined }> = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetchCalls.push({ input, init });
+      return json({ ok: true });
+    });
+
+    const response = await routeRequest(
+      new Request("https://example.test/telegram/set-webhook", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }),
+      createTelegramEnv({ allowed: "1" }),
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(fetchCalls[0]?.init?.body as string)).toMatchObject({
+      url: "https://clawflare.omattic.com/webhook/telegram",
       secret_token: "telegram-secret",
     });
   });

@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "clawflare",
   "account_id": "c145c1bd5046a6996b5cde57e1c962c2",
+  "routes": [{ "pattern": "clawflare.omattic.com", "zone_name": "omattic.com", "custom_domain": true }],
   "main": "src/entry.ts",
   "compatibility_date": "2026-05-06",
   "compatibility_flags": ["nodejs_compat"],
@@ -48,6 +49,7 @@
   },
   "vars": {
     "CLAWFLARE_ENV": "dev",
+    "CLAWFLARE_PUBLIC_BASE_URL": "https://clawflare.omattic.com",
     "CLAWFLARE_DEFAULT_ACCOUNT_ID": "local",
     "CLAWFLARE_DEFAULT_AGENT_ID": "main",
     "CLOUDFLARE_AI_GATEWAY_NAME": "clawflare"

@@ -15,7 +15,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "db:migrate:local": "wrangler d1 migrations apply clawflare --local",
     "db:migrate": "wrangler d1 migrations apply clawflare",
-    "queues:tail": "wrangler tail"
+    "queues:tail": "wrangler tail",
+    "telegram:webhook:sync": "node scripts/sync-telegram-webhook.mjs"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.41"
