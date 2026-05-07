@@ -23,23 +23,25 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Install dependencies
-        run: corepack pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: corepack pnpm typecheck
+        run: pnpm typecheck
 
       - name: Test
-        run: corepack pnpm test
+        run: pnpm test
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
