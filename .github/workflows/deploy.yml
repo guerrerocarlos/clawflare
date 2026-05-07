@@ -52,6 +52,12 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy
+
       - name: Sync Worker secrets
         run: |
           printf '%s' "$CLAWFLARE_GATEWAY_TOKEN" | pnpm exec wrangler secret put CLAWFLARE_GATEWAY_TOKEN
@@ -61,12 +67,6 @@ jobs:
           if [ -n "${TELEGRAM_BOT_USERNAME:-}" ]; then
             printf '%s' "$TELEGRAM_BOT_USERNAME" | pnpm exec wrangler secret put TELEGRAM_BOT_USERNAME
           fi
-
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy
 
       - name: Sync Telegram webhook
         run: pnpm telegram:webhook:sync
