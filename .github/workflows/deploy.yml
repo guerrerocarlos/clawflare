@@ -53,19 +53,16 @@ jobs:
         run: pnpm test
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy
+        run: npx wrangler@4.90.0 deploy
 
       - name: Sync Worker secrets
         run: |
-          printf '%s' "$CLAWFLARE_GATEWAY_TOKEN" | pnpm exec wrangler secret put CLAWFLARE_GATEWAY_TOKEN
-          printf '%s' "$TELEGRAM_BOT_TOKEN" | pnpm exec wrangler secret put TELEGRAM_BOT_TOKEN
-          printf '%s' "$TELEGRAM_WEBHOOK_SECRET" | pnpm exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
-          printf '%s' "$TELEGRAM_ALLOWED_USER_IDS" | pnpm exec wrangler secret put TELEGRAM_ALLOWED_USER_IDS
+          printf '%s' "$CLAWFLARE_GATEWAY_TOKEN" | npx wrangler@4.90.0 secret put CLAWFLARE_GATEWAY_TOKEN
+          printf '%s' "$TELEGRAM_BOT_TOKEN" | npx wrangler@4.90.0 secret put TELEGRAM_BOT_TOKEN
+          printf '%s' "$TELEGRAM_WEBHOOK_SECRET" | npx wrangler@4.90.0 secret put TELEGRAM_WEBHOOK_SECRET
+          printf '%s' "$TELEGRAM_ALLOWED_USER_IDS" | npx wrangler@4.90.0 secret put TELEGRAM_ALLOWED_USER_IDS
           if [ -n "${TELEGRAM_BOT_USERNAME:-}" ]; then
-            printf '%s' "$TELEGRAM_BOT_USERNAME" | pnpm exec wrangler secret put TELEGRAM_BOT_USERNAME
+            printf '%s' "$TELEGRAM_BOT_USERNAME" | npx wrangler@4.90.0 secret put TELEGRAM_BOT_USERNAME
           fi
 
       - name: Sync Telegram webhook
