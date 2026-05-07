@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "clawflare",
+  "account_id": "c145c1bd5046a6996b5cde57e1c962c2",
   "main": "src/entry.ts",
   "compatibility_date": "2026-05-06",
   "compatibility_flags": ["nodejs_compat"],
