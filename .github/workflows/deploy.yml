@@ -20,7 +20,13 @@ jobs:
       deployments: write
     env:
       CLAWFLARE_PUBLIC_BASE_URL: https://clawflare.omattic.com
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLAWFLARE_GATEWAY_TOKEN: ${{ secrets.CLAWFLARE_GATEWAY_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+      TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+      TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
 
     steps:
       - name: Check out repository
@@ -45,6 +51,16 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Sync Worker secrets
+        run: |
+          printf '%s' "$CLAWFLARE_GATEWAY_TOKEN" | pnpm exec wrangler secret put CLAWFLARE_GATEWAY_TOKEN
+          printf '%s' "$TELEGRAM_BOT_TOKEN" | pnpm exec wrangler secret put TELEGRAM_BOT_TOKEN
+          printf '%s' "$TELEGRAM_WEBHOOK_SECRET" | pnpm exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
+          printf '%s' "$TELEGRAM_ALLOWED_USER_IDS" | pnpm exec wrangler secret put TELEGRAM_ALLOWED_USER_IDS
+          if [ -n "${TELEGRAM_BOT_USERNAME:-}" ]; then
+            printf '%s' "$TELEGRAM_BOT_USERNAME" | pnpm exec wrangler secret put TELEGRAM_BOT_USERNAME
+          fi
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
