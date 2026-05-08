@@ -3,6 +3,7 @@ import type { ClawflareEnv, QueuePayload } from "../src/env";
 import { buildPrompt } from "../src/agents/prompt";
 import { DurableAgentRuntime } from "../src/agents/run-loop";
 import type { AgentMessage } from "../src/agents/runtime";
+import { ProviderError } from "../src/providers/errors";
 import { FakeProviderRuntime, type FakeProviderOutput } from "../src/providers/fake";
 import type { ProviderCompleteInput, ProviderCompleteOutput } from "../src/providers/runtime";
 import { SessionLanes } from "../src/sessions/lanes";
@@ -187,6 +188,38 @@ describe("agent runtime", () => {
     await runtime.waitForRun({ runId: accepted.runId });
 
     expect(capturedModel).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+  });
+
+  it("returns normalized provider errors for failed runs", async () => {
+    class FailingProvider extends FakeProviderRuntime {
+      override async complete(): Promise<ProviderCompleteOutput & FakeProviderOutput> {
+        throw new ProviderError("PROVIDER_AUTH", "openai-compatible rejected authentication.", 401, false);
+      }
+    }
+
+    const { runtime, store } = createRuntime({
+      provider: new FailingProvider(),
+      runIds: ["run-provider-error"],
+    });
+
+    const accepted = await runtime.startRun({
+      session: { channel: "telegram", peerId: "42" },
+      messages: [{ role: "user", content: "hello" }],
+    });
+    const result = await runtime.waitForRun({ runId: accepted.runId });
+
+    expect(result).toMatchObject({
+      type: "agent.wait",
+      runId: "run-provider-error",
+      status: "failed",
+      error: {
+        code: "PROVIDER_AUTH",
+        message: "openai-compatible rejected authentication.",
+        status: 401,
+        retryable: false,
+      },
+    });
+    expect(store.runs.get("run-provider-error")?.error_json).toContain("openai-compatible rejected authentication.");
   });
 
   it("serializes runs per session lane", async () => {

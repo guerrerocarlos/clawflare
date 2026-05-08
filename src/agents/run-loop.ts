@@ -7,6 +7,7 @@ import { SessionLanes } from "../sessions/lanes";
 import type { AgentRuntimeStore } from "../sessions/store";
 import { runEventsKey, transcriptKey } from "../storage/keys";
 import type { ClawHubSkill } from "../plugins/types";
+import { normalizeProviderError } from "../providers/errors";
 import { buildPrompt } from "./prompt";
 import type {
   AgentEventSink,
@@ -250,19 +251,25 @@ export class DurableAgentRuntime implements AgentRuntime {
         summary,
       };
     } catch (error) {
+      const normalizedError = normalizeProviderError(error);
       const endedAt = this.now().toISOString();
       await this.options.store.updateRunStatus(accepted.runId, {
         status: "failed",
-        error_json: JSON.stringify(error instanceof Error ? { message: error.message } : error),
+        error_json: JSON.stringify(normalizedError),
         ended_at: endedAt,
       });
-      await emit("failed", { status: "failed", endedAt });
+      console.error("agent.run.failed", {
+        runId: accepted.runId,
+        sessionKey: accepted.sessionKey,
+        error: normalizedError,
+      });
+      await emit("failed", { status: "failed", endedAt, error: normalizedError });
 
       return {
         type: "agent.wait",
         runId: accepted.runId,
         status: "failed",
-        error,
+        error: normalizedError,
       };
     }
   }
