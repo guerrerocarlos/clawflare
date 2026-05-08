@@ -31,10 +31,18 @@ interface TelegramMessage {
 }
 
 interface AgentObjectRunResponse {
+  accepted?: {
+    runId: string;
+  };
   result?: {
     status: string;
     summary?: {
       outputText?: string;
+    };
+    error?: {
+      message?: string;
+      code?: string;
+      status?: number;
     };
   };
 }
@@ -190,6 +198,11 @@ async function invokeAgent(env: ClawflareEnv, request: Request, message: Normali
     }),
   );
   const payload = (await response.json()) as AgentObjectRunResponse;
+
+  if (payload.result?.status === "failed") {
+    const message = payload.result.error?.message;
+    return message ? `Provider error: ${message}` : "Provider error: agent run failed.";
+  }
 
   return payload.result?.summary?.outputText ?? "No response produced.";
 }

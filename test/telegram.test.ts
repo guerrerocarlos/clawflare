@@ -141,6 +141,39 @@ describe("telegram webhook", () => {
     });
   });
 
+  it("surfaces agent runtime failures in Telegram replies", async () => {
+    const fetchCalls: Array<{ input: RequestInfo | URL; init: RequestInit | undefined }> = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetchCalls.push({ input, init });
+      return json({ ok: true });
+    });
+
+    const failingEnv = createTelegramEnv({ allowed: "1" });
+    failingEnv.AGENT_OBJECT = {
+      idFromName: () => ({}) as DurableObjectId,
+      get: () =>
+        ({
+          fetch: async () =>
+            json({
+              accepted: { runId: "run-1" },
+              result: {
+                status: "failed",
+                error: {
+                  message: "openai-compatible rejected authentication.",
+                },
+              },
+            }),
+        }) as unknown as DurableObjectStub,
+    } as unknown as DurableObjectNamespace;
+
+    const response = await routeRequest(webhookRequest(privateMessageUpdate("hello")), failingEnv, ctx);
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(fetchCalls[0]?.init?.body as string)).toMatchObject({
+      text: "Provider error: openai-compatible rejected authentication.",
+    });
+  });
+
   it("requires mention or command in groups", async () => {
     const fetchCalls: unknown[] = [];
     vi.stubGlobal("fetch", async (...args: unknown[]) => {
