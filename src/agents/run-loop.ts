@@ -221,7 +221,7 @@ export class DurableAgentRuntime implements AgentRuntime {
         sessionKey: session.sessionKey,
       }, { skills: (await this.options.enabledSkills?.()) ?? [] });
       const providerOutput = await this.provider.complete(
-        { model: input.model ?? "deterministic", prompt, messages: input.messages },
+        { model: input.model ?? this.options.env.CLAWFLARE_DEFAULT_MODEL ?? "deterministic", prompt, messages: input.messages },
         { env: this.options.env, fetcher: fetch },
       );
       await emit("assistant", { text: providerOutput.text, usage: providerOutput.usage });

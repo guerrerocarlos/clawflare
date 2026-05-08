@@ -155,6 +155,40 @@ describe("agent runtime", () => {
     });
   });
 
+  it("uses the environment default model when the input omits one", async () => {
+    let capturedModel: string | undefined;
+
+    class ModelRecordingProvider extends FakeProviderRuntime {
+      override async complete(input: ProviderCompleteInput): Promise<ProviderCompleteOutput & FakeProviderOutput> {
+        capturedModel = input.model;
+        return await super.complete(input);
+      }
+    }
+
+    const store = new MemoryAgentRuntimeStore();
+    const r2 = new FakeR2RuntimeStorage();
+    const runtime = new DurableAgentRuntime({
+      env: {
+        CLAWFLARE_DEFAULT_ACCOUNT_ID: "acct",
+        CLAWFLARE_DEFAULT_AGENT_ID: "agent",
+        CLAWFLARE_DEFAULT_MODEL: "nvidia/nemotron-3-super-120b-a12b:free",
+      } as ClawflareEnv,
+      store,
+      r2,
+      provider: new ModelRecordingProvider(),
+      now: () => new Date("2026-05-06T12:00:00.000Z"),
+      runId: () => "run-default-model",
+    });
+
+    const accepted = await runtime.startRun({
+      session: { channel: "telegram", peerId: "42" },
+      messages: [{ role: "user", content: "hello" }],
+    });
+    await runtime.waitForRun({ runId: accepted.runId });
+
+    expect(capturedModel).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+  });
+
   it("serializes runs per session lane", async () => {
     const order: string[] = [];
     const { runtime } = createRuntime({

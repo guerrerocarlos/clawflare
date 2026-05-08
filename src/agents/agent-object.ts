@@ -7,6 +7,7 @@ import { createR2Storage } from "../storage/r2";
 import { SqliteAgentRuntimeStore } from "../sessions/store";
 import { ClawflarePluginRuntime } from "../plugins/runtime";
 import { MemoryPluginStore } from "../plugins/registry";
+import { selectDefaultAgentProvider } from "../providers/defaults";
 import {
   handleGatewaySocketMessage,
   initializeGatewaySocket,
@@ -40,6 +41,7 @@ export class AgentObject {
       env,
       store: new SqliteAgentRuntimeStore(sqlite),
       r2,
+      provider: selectDefaultAgentProvider(env),
       transcriptIndexingQueue: env.TRANSCRIPT_INDEXING_QUEUE,
       auditQueue: env.AUDIT_EVENTS_QUEUE,
       enabledSkills: () => this.pluginRuntime.enabledSkills(),

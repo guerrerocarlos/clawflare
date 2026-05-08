@@ -50,9 +50,11 @@
   "vars": {
     "CLAWFLARE_ENV": "dev",
     "CLAWFLARE_PUBLIC_BASE_URL": "https://clawflare.omattic.com",
+    "CLAWFLARE_DEFAULT_MODEL": "nvidia/nemotron-3-super-120b-a12b:free",
     "CLAWFLARE_DEFAULT_ACCOUNT_ID": "local",
     "CLAWFLARE_DEFAULT_AGENT_ID": "main",
-    "CLOUDFLARE_AI_GATEWAY_NAME": "clawflare"
+    "CLOUDFLARE_AI_GATEWAY_NAME": "clawflare",
+    "OPENAI_COMPATIBLE_BASE_URL": "https://openrouter.ai/api/v1"
   },
   // Secrets are configured with `wrangler secret put`.
   // Required later: CLAWFLARE_GATEWAY_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
