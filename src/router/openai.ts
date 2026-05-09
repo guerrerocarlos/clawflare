@@ -1,6 +1,7 @@
 import type { ClawflareEnv } from "../env";
 import type { AgentRunInput, AgentWaitResult } from "../agents/runtime";
 import { getRuntimeDefaults } from "../env";
+import { createProviderFetch } from "../providers/fetcher";
 import { createDefaultProviderRegistry } from "../providers/registry";
 
 interface OpenAiError {
@@ -180,7 +181,7 @@ export async function handleModelsList(request: Request, env: ClawflareEnv): Pro
   }
 
   const registry = createDefaultProviderRegistry();
-  const models = await registry.listModels(env, fetch);
+  const models = await registry.listModels(env, createProviderFetch());
 
   return openAiJson({
     object: "list",
@@ -201,7 +202,7 @@ export async function handleModelGet(request: Request, env: ClawflareEnv, modelI
   }
 
   const registry = createDefaultProviderRegistry();
-  const models = await registry.listModels(env, fetch);
+  const models = await registry.listModels(env, createProviderFetch());
   const model = models.find((candidate) => candidate.id === modelId);
 
   if (!model) {

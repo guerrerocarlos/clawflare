@@ -8,6 +8,7 @@ import type { AgentRuntimeStore } from "../sessions/store";
 import { runEventsKey, transcriptKey } from "../storage/keys";
 import type { ClawHubSkill } from "../plugins/types";
 import { normalizeProviderError } from "../providers/errors";
+import { createProviderFetch } from "../providers/fetcher";
 import { buildPrompt } from "./prompt";
 import type {
   AgentEventSink,
@@ -221,9 +222,10 @@ export class DurableAgentRuntime implements AgentRuntime {
         agentId: session.agentId,
         sessionKey: session.sessionKey,
       }, { skills: (await this.options.enabledSkills?.()) ?? [] });
+      const providerFetch = createProviderFetch();
       const providerOutput = await this.provider.complete(
         { model: input.model ?? this.options.env.CLAWFLARE_DEFAULT_MODEL ?? "deterministic", prompt, messages: input.messages },
-        { env: this.options.env, fetcher: fetch },
+        { env: this.options.env, fetcher: providerFetch },
       );
       await emit("assistant", { text: providerOutput.text, usage: providerOutput.usage });
 
