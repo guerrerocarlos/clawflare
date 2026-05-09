@@ -7,17 +7,23 @@ import { sha256Hex, workspaceObjectKey } from "../storage/keys";
 export class MemoryWorkspaceIndex {
   private readonly entries = new Map<string, WorkspaceEntry>();
 
-  list(): WorkspaceEntry[] {
+  async list(): Promise<WorkspaceEntry[]> {
     return [...this.entries.values()].sort((left, right) => left.path.localeCompare(right.path));
   }
 
-  get(path: string): WorkspaceEntry | null {
+  async get(path: string): Promise<WorkspaceEntry | null> {
     return this.entries.get(path) ?? null;
   }
 
-  upsert(entry: WorkspaceEntry): void {
+  async upsert(entry: WorkspaceEntry): Promise<void> {
     this.entries.set(entry.path, entry);
   }
+}
+
+export interface WorkspaceIndexStore {
+  list(): Promise<WorkspaceEntry[]>;
+  get(path: string): Promise<WorkspaceEntry | null>;
+  upsert(entry: WorkspaceEntry): Promise<void>;
 }
 
 export class R2WorkspaceBackend implements WorkspaceToolBackend {
@@ -26,17 +32,17 @@ export class R2WorkspaceBackend implements WorkspaceToolBackend {
       accountId: string;
       agentId: string;
       r2: Pick<R2Storage, "putWorkspaceObject" | "getWorkspaceObjectText">;
-      index: MemoryWorkspaceIndex;
+      index: WorkspaceIndexStore;
       now?: () => Date;
     },
   ) {}
 
   async list(): Promise<WorkspaceEntry[]> {
-    return this.options.index.list();
+    return await this.options.index.list();
   }
 
   async read(path: string): Promise<WorkspaceFile | null> {
-    const entry = this.options.index.get(path);
+    const entry = await this.options.index.get(path);
 
     if (!entry) {
       return null;
@@ -72,7 +78,7 @@ export class R2WorkspaceBackend implements WorkspaceToolBackend {
       updatedAt: (this.options.now ?? (() => new Date()))().toISOString(),
     };
 
-    this.options.index.upsert(entry);
+    await this.options.index.upsert(entry);
     return entry;
   }
 

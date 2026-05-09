@@ -9,7 +9,7 @@ import {
   workspaceObjectKey,
 } from "../src/storage/keys";
 import { R2Storage } from "../src/storage/r2";
-import { DurableObjectSqliteStorage, durableObjectSqliteMigrations, type SessionRecord } from "../src/storage/do-sqlite";
+import { durableObjectSqliteMigrations } from "../src/storage/do-sqlite";
 
 class FakeD1Statement {
   private bindings: unknown[] = [];
@@ -29,15 +29,36 @@ class FakeD1Statement {
     return { success: true };
   }
 
+  async all<T>(): Promise<{ results: T[] }> {
+    this.db.calls.push({ query: this.query, bindings: this.bindings });
+    return { results: this.db.allResult as T[] };
+  }
+
   async first<T>(): Promise<T | null> {
     this.db.calls.push({ query: this.query, bindings: this.bindings });
     return this.db.firstResult as T | null;
+  }
+
+  async raw<T>(): Promise<T[]> {
+    this.db.calls.push({ query: this.query, bindings: this.bindings });
+
+    if (this.db.rawResult !== null) {
+      return this.db.rawResult as T[];
+    }
+
+    if (this.db.firstResult && typeof this.db.firstResult === "object") {
+      return [Object.values(this.db.firstResult as Record<string, unknown>) as T];
+    }
+
+    return [];
   }
 }
 
 class FakeD1Database {
   readonly calls: Array<{ query: string; bindings: unknown[] }> = [];
   firstResult: unknown = null;
+  allResult: unknown[] = [];
+  rawResult: unknown[] | null = null;
 
   prepare(query: string): FakeD1Statement {
     return new FakeD1Statement(this, query);
@@ -84,16 +105,6 @@ class FakeR2Bucket {
   }
 }
 
-class FakeSql {
-  readonly calls: Array<{ query: string; bindings: unknown[] }> = [];
-  rows: unknown[] = [];
-
-  exec<T>(query: string, ...bindings: unknown[]): Iterable<T> {
-    this.calls.push({ query, bindings });
-    return this.rows as T[];
-  }
-}
-
 describe("R2 key helpers", () => {
   it("creates approved R2 key shapes", async () => {
     expect(transcriptKey({ accountId: "acct", agentId: "agent", sessionId: "sess" })).toBe(
@@ -132,10 +143,10 @@ describe("D1 storage adapter", () => {
     db.firstResult = record;
 
     await expect(storage.getAccount("acct")).resolves.toEqual(record);
-    expect(db.calls[0]?.query).toContain("INSERT INTO accounts");
-    expect(db.calls[0]?.bindings).toEqual(["acct", "Account", record.created_at, record.updated_at]);
-    expect(db.calls[1]?.query).toContain("SELECT * FROM accounts");
-    expect(db.calls[1]?.bindings).toEqual(["acct"]);
+    expect(db.calls[0]?.query).toContain('insert into "accounts"');
+    expect(db.calls[0]?.bindings).toEqual(["acct", "Account", record.created_at, record.updated_at, "Account", record.updated_at]);
+    expect(db.calls[1]?.query).toContain('from "accounts"');
+    expect(db.calls[1]?.bindings).toEqual(["acct", 1]);
   });
 });
 
@@ -159,40 +170,11 @@ describe("R2 storage adapter", () => {
   });
 });
 
-describe("Durable Object SQLite storage adapter", () => {
-  it("runs all local DO SQLite migrations", () => {
-    const sql = new FakeSql();
-    const storage = new DurableObjectSqliteStorage({ sql });
-
-    storage.migrate();
-
-    expect(sql.calls).toHaveLength(durableObjectSqliteMigrations.length);
-    expect(sql.calls[0]?.query).toContain("CREATE TABLE IF NOT EXISTS sessions");
-  });
-
-  it("upserts and reads sessions", () => {
-    const sql = new FakeSql();
-    const storage = new DurableObjectSqliteStorage({ sql });
-    const session: SessionRecord = {
-      session_key: "acct:agent:telegram:1",
-      session_id: "sess",
-      account_id: "acct",
-      agent_id: "agent",
-      title: null,
-      status: "active",
-      last_run_id: null,
-      transcript_r2_key: null,
-      session_started_at: "2026-05-06T00:00:00.000Z",
-      last_interaction_at: "2026-05-06T00:00:00.000Z",
-      updated_at: "2026-05-06T00:00:00.000Z",
-    };
-
-    storage.upsertSession(session);
-    sql.rows = [session];
-
-    expect(storage.getSession(session.session_key)).toEqual(session);
-    expect(sql.calls[0]?.query).toContain("INSERT INTO sessions");
-    expect(sql.calls[0]?.bindings[0]).toBe(session.session_key);
-    expect(sql.calls[1]?.query).toContain("SELECT * FROM sessions");
+describe("Durable Object SQLite migration bundle", () => {
+  it("exposes a Drizzle journal and SQL migration map", () => {
+    expect(durableObjectSqliteMigrations.journal.entries).toHaveLength(1);
+    expect(durableObjectSqliteMigrations.journal.entries[0]?.tag).toBe("0000_agent_runtime_schema");
+    expect(durableObjectSqliteMigrations.migrations.m0000).toContain("CREATE TABLE `sessions`");
+    expect(durableObjectSqliteMigrations.migrations.m0000).toContain("CREATE TABLE `runs`");
   });
 });

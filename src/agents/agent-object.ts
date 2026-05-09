@@ -8,6 +8,9 @@ import { SqliteAgentRuntimeStore } from "../sessions/store";
 import { ClawflarePluginRuntime } from "../plugins/runtime";
 import { MemoryPluginStore } from "../plugins/registry";
 import { selectDefaultAgentProvider } from "../providers/defaults";
+import { createDefaultToolRegistry, type ToolRegistry } from "../tools/registry";
+import { R2WorkspaceBackend } from "../tools/workspace";
+import { SqliteWorkspaceIndex } from "../tools/sqlite-workspace";
 import {
   handleGatewaySocketMessage,
   initializeGatewaySocket,
@@ -20,16 +23,27 @@ export class AgentObject {
   private readonly connections = new WeakMap<WebSocket, GatewayConnectionState>();
   private readonly agentRuntime: DurableAgentRuntime;
   private readonly pluginRuntime: ClawflarePluginRuntime;
+  private readonly toolRegistry: ToolRegistry;
+  private readonly workspace: R2WorkspaceBackend;
 
   constructor(
     private readonly state: DurableObjectState,
     private readonly env: ClawflareEnv,
   ) {
     const sqlite = new DurableObjectSqliteStorage(this.state.storage);
-    sqlite.migrate();
+    this.state.blockConcurrencyWhile(async () => {
+      await sqlite.migrate();
+    });
     const r2 = createR2Storage(env);
     const pluginStore = new MemoryPluginStore();
     const defaults = getRuntimeDefaults(env);
+    this.toolRegistry = createDefaultToolRegistry();
+    this.workspace = new R2WorkspaceBackend({
+      accountId: defaults.accountId,
+      agentId: defaults.agentId,
+      r2,
+      index: new SqliteWorkspaceIndex(sqlite),
+    });
     this.pluginRuntime = new ClawflarePluginRuntime({
       env,
       accountId: defaults.accountId,
@@ -45,6 +59,8 @@ export class AgentObject {
       transcriptIndexingQueue: env.TRANSCRIPT_INDEXING_QUEUE,
       auditQueue: env.AUDIT_EVENTS_QUEUE,
       enabledSkills: () => this.pluginRuntime.enabledSkills(),
+      toolRegistry: this.toolRegistry,
+      createToolContext: () => this.createToolContext(["workspace_list", "workspace_read", "web_fetch"]),
     });
 
     for (const socket of this.state.getWebSockets()) {
@@ -82,6 +98,17 @@ export class AgentObject {
       });
     }
 
+    if (url.pathname === "/__clawflare/agent/tools/invoke" && request.method === "POST") {
+      const body = (await request.json()) as { tool?: string; input?: unknown };
+
+      if (typeof body.tool !== "string") {
+        return jsonResponse({ ok: false, error: { code: "BAD_REQUEST", message: "tool is required." } }, { status: 400 });
+      }
+
+      const result = await this.toolRegistry.invoke(body.tool, body.input, this.createToolContext());
+      return jsonResponse({ ok: true, tool: body.tool, result });
+    }
+
     return jsonResponse(
       {
         ok: true,
@@ -102,6 +129,8 @@ export class AgentObject {
     await handleGatewaySocketMessage(socket, connection, this.env, message, {
       agentRuntime: this.agentRuntime,
       pluginRuntime: this.pluginRuntime,
+      toolRegistry: this.toolRegistry,
+      toolContext: this.createToolContext(),
     });
   }
 
@@ -123,5 +152,25 @@ export class AgentObject {
     const restored = restoreConnectionState(socket.deserializeAttachment() as GatewaySocketAttachment | undefined);
     this.connections.set(socket, restored);
     return restored;
+  }
+
+  private createToolContext(allowedTools?: string[]) {
+    const defaults = getRuntimeDefaults(this.env);
+
+    return {
+      env: this.env,
+      accountId: defaults.accountId,
+      agentId: defaults.agentId,
+      policy: {
+        allowRead: true,
+        allowWrite: true,
+        allowNetwork: true,
+        allowChannelSend: false,
+        allowMemory: true,
+        ...(allowedTools === undefined ? {} : { allowedTools }),
+      },
+      workspace: this.workspace,
+      fetcher: fetch,
+    };
   }
 }

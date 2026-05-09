@@ -24,26 +24,70 @@ describe("router", () => {
     expect(payload.protocol.methods).toContain("connect");
   });
 
-  it("dispatches reserved compatibility routes to structured NOT_IMPLEMENTED responses", async () => {
-    const routes = [
-      ["POST", "/tools/invoke"],
-    ] as const;
+  it("requires bearer auth for /tools/invoke", async () => {
+    const response = await routeRequest(new Request("https://example.test/tools/invoke", { method: "POST" }), {} as ClawflareEnv, ctx);
+    const payload = (await response.json()) as any;
 
-    for (const [method, path] of routes) {
-      const response = await routeRequest(new Request(`https://example.test${path}`, { method }), {} as ClawflareEnv, ctx);
-      const payload = (await response.json()) as any;
+    expect(response.status).toBe(401);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+      },
+    });
+  });
 
-      expect(response.status).toBe(501);
-      expect(payload).toMatchObject({
-        ok: false,
-        error: {
-          code: "NOT_IMPLEMENTED",
-          details: {
-            route: `${method} ${path}`,
-          },
+  it("forwards /tools/invoke to the agent object", async () => {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const env = {
+      CLAWFLARE_GATEWAY_TOKEN: "secret",
+      CLAWFLARE_DEFAULT_ACCOUNT_ID: "acct",
+      CLAWFLARE_DEFAULT_AGENT_ID: "agent",
+      AGENT_OBJECT: {
+        idFromName(name: string) {
+          return name as unknown as DurableObjectId;
         },
-      });
-    }
+        get() {
+          return {
+            fetch: async (request: Request) => {
+              calls.push({ url: request.url, body: await request.json() });
+              return new Response(JSON.stringify({ ok: true, tool: "web_fetch", result: { text: "router-tool-ok" } }), {
+                headers: { "content-type": "application/json" },
+              });
+            },
+          } as DurableObjectStub;
+        },
+      } as unknown as DurableObjectNamespace,
+    } as ClawflareEnv;
+
+    const response = await routeRequest(
+      new Request("https://example.test/tools/invoke", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ tool: "web_fetch", input: { url: "https://example.com" } }),
+      }),
+      env,
+      ctx,
+    );
+    const payload = (await response.json()) as any;
+
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      ok: true,
+      tool: "web_fetch",
+      result: {
+        text: "router-tool-ok",
+      },
+    });
+    expect(calls).toEqual([
+      {
+        url: "https://example.test/__clawflare/agent/tools/invoke",
+        body: { tool: "web_fetch", input: { url: "https://example.com" } },
+      },
+    ]);
   });
 
   it("returns method errors for known paths with unsupported methods", async () => {

@@ -13,17 +13,22 @@
     "lint": "oxlint .",
     "format": "prettier --write .",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:generate": "pnpm db:generate:d1 && pnpm db:generate:do",
+    "db:generate:d1": "drizzle-kit generate --config drizzle.config.ts",
+    "db:generate:do": "drizzle-kit generate --config drizzle-do.config.ts",
     "db:migrate:local": "wrangler d1 migrations apply clawflare --local",
     "db:migrate": "wrangler d1 migrations apply clawflare",
     "queues:tail": "wrangler tail",
     "telegram:webhook:sync": "node scripts/sync-telegram-webhook.mjs"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.41"
+    "@sinclair/typebox": "^0.34.41",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.9.9",
     "@cloudflare/workers-types": "^4.20260504.0",
+    "drizzle-kit": "^0.31.10",
     "oxlint": "^1.18.0",
     "prettier": "^3.6.2",
     "tsx": "^4.21.0",

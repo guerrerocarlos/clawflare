@@ -5,10 +5,13 @@ import { DurableAgentRuntime } from "../src/agents/run-loop";
 import type { AgentMessage } from "../src/agents/runtime";
 import { ProviderError } from "../src/providers/errors";
 import { FakeProviderRuntime, type FakeProviderOutput } from "../src/providers/fake";
-import type { ProviderCompleteInput, ProviderCompleteOutput } from "../src/providers/runtime";
+import type { ProviderCompleteInput, ProviderCompleteOutput, ProviderRuntime } from "../src/providers/runtime";
 import { SessionLanes } from "../src/sessions/lanes";
 import { normalizeSessionRef } from "../src/sessions/keys";
 import { MemoryAgentRuntimeStore } from "../src/sessions/store";
+import { createDefaultToolRegistry } from "../src/tools/registry";
+import type { ToolInvokeContext } from "../src/tools/runtime";
+import { MemoryWorkspaceIndex, R2WorkspaceBackend } from "../src/tools/workspace";
 
 class FakeR2RuntimeStorage {
   readonly objects = new Map<string, string>();
@@ -48,7 +51,11 @@ class RecordingProvider extends FakeProviderRuntime {
   }
 }
 
-function createRuntime(overrides?: { provider?: FakeProviderRuntime; runIds?: string[] }) {
+function createRuntime(overrides?: {
+  provider?: ProviderRuntime;
+  runIds?: string[];
+  toolContext?: ToolInvokeContext;
+}) {
   const store = new MemoryAgentRuntimeStore();
   const r2 = new FakeR2RuntimeStorage();
   const transcriptQueue = new FakeQueue();
@@ -70,9 +77,16 @@ function createRuntime(overrides?: { provider?: FakeProviderRuntime; runIds?: st
     runId: () => runIds[runIndex++] ?? crypto.randomUUID(),
   };
 
-  const runtime = new DurableAgentRuntime(
-    overrides?.provider === undefined ? runtimeOptions : { ...runtimeOptions, provider: overrides.provider },
-  );
+  const runtime = new DurableAgentRuntime({
+    ...runtimeOptions,
+    ...(overrides?.provider === undefined ? {} : { provider: overrides.provider }),
+    ...(overrides?.toolContext === undefined
+      ? {}
+      : {
+          toolRegistry: createDefaultToolRegistry(),
+          createToolContext: () => overrides.toolContext as ToolInvokeContext,
+        }),
+  });
 
   return { runtime, store, r2, transcriptQueue, auditQueue };
 }
@@ -238,7 +252,120 @@ describe("agent runtime", () => {
 
     expect(order).toEqual(["start:first", "end:first", "start:second", "end:second"]);
   });
+
+  it("can execute a bounded tool loop before producing the final answer", async () => {
+    class ToolCallingProvider extends FakeProviderRuntime {
+      calls = 0;
+
+      override async complete(input: ProviderCompleteInput): Promise<ProviderCompleteOutput & FakeProviderOutput> {
+        this.calls += 1;
+
+        if (this.calls === 1) {
+          expect(input.messages[0]?.role).toBe("system");
+          expect(input.messages[0]?.content).toContain("<clawflare-tools>");
+          return {
+            text: '<clawflare_tool_call>{"name":"web_fetch","input":{"url":"https://example.com/page"}}</clawflare_tool_call>',
+            usage: {
+              inputMessages: input.messages.length,
+              outputCharacters: 0,
+            },
+          };
+        }
+
+        const toolMessage = input.messages.at(-1);
+        expect(toolMessage?.role).toBe("tool");
+        expect(toolMessage?.content).toContain('"status":200');
+        expect(toolMessage?.content).toContain('"text":"tool-ok"');
+
+        return {
+          text: "Fetched example.com successfully.",
+          usage: {
+            inputMessages: input.messages.length,
+            outputCharacters: 33,
+          },
+        };
+      }
+    }
+
+    const workspace = new R2WorkspaceBackend({
+      accountId: "acct",
+      agentId: "agent",
+      r2: new FakeWorkspaceR2(),
+      index: new MemoryWorkspaceIndex(),
+      now: () => new Date("2026-05-06T00:00:00.000Z"),
+    });
+    const { runtime } = createRuntime({
+      provider: new ToolCallingProvider(),
+      runIds: ["run-tool-loop"],
+      toolContext: {
+        env: {} as ClawflareEnv,
+        accountId: "acct",
+        agentId: "agent",
+        policy: {
+          allowRead: true,
+          allowWrite: false,
+          allowNetwork: true,
+          allowChannelSend: false,
+          allowMemory: false,
+          allowedTools: ["web_fetch", "workspace_read", "workspace_list"],
+          webFetchAllowlist: ["example.com"],
+        },
+        workspace,
+        fetcher: async () => new Response("tool-ok", { status: 200, headers: { "content-type": "text/plain" } }),
+      },
+    });
+    const phases: string[] = [];
+
+    const accepted = await runtime.startRun(
+      {
+        session: { channel: "telegram", peerId: "42" },
+        messages: [{ role: "user", content: "please fetch example.com" }],
+      },
+      {
+        sink: (event) => {
+          phases.push(event.phase);
+        },
+      },
+    );
+    const result = await runtime.waitForRun({ runId: accepted.runId });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      summary: {
+        outputText: "Fetched example.com successfully.",
+        toolTrace: [
+          {
+            tool: "web_fetch",
+            input: { url: "https://example.com/page" },
+          },
+        ],
+      },
+    });
+    expect(phases).toEqual(["started", "tool", "tool", "assistant", "completed"]);
+  });
 });
+
+class FakeWorkspaceR2 {
+  readonly objects = new Map<string, string>();
+
+  async putWorkspaceObject(key: string, body: string | ArrayBuffer | ReadableStream): Promise<R2Object> {
+    this.objects.set(key, typeof body === "string" ? body : "[binary]");
+
+    return {
+      key,
+      version: "fake",
+      size: this.objects.get(key)?.length ?? 0,
+      etag: "etag",
+      httpEtag: '"etag"',
+      uploaded: new Date("2026-05-06T00:00:00.000Z"),
+      checksums: {},
+    } as R2Object;
+  }
+
+  async getWorkspaceObjectText(key: string): Promise<string | null> {
+    return this.objects.get(key) ?? null;
+  }
+}
 
 describe("session lanes", () => {
   it("runs tasks for the same session in order", async () => {

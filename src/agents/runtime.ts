@@ -46,6 +46,12 @@ export interface AgentRunSummary {
   outputText: string;
   transcriptR2Key?: string;
   usage?: Record<string, unknown>;
+  toolTrace?: Array<{
+    tool: string;
+    input: unknown;
+    result?: unknown;
+    error?: unknown;
+  }>;
 }
 
 export interface ListSessionsInput {
@@ -77,7 +83,7 @@ export interface AgentStreamEvent {
   runId: string;
   sessionKey: string;
   seq: number;
-  phase: "accepted" | "started" | "assistant" | "completed" | "failed";
+  phase: "accepted" | "started" | "tool" | "assistant" | "completed" | "failed";
   payload: unknown;
   createdAt: string;
 }

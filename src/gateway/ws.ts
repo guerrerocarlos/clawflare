@@ -1,6 +1,8 @@
 import type { ClawflareEnv } from "../env";
 import type { AgentRuntime } from "../agents/runtime";
 import type { ClawflarePluginRuntime } from "../plugins/runtime";
+import type { ToolRegistry } from "../tools/registry";
+import type { ToolInvokeContext } from "../tools/runtime";
 import { createConnectChallenge } from "../protocol/connect";
 import { badRequest, toClawflareError } from "../protocol/errors";
 import {
@@ -34,6 +36,8 @@ export interface GatewaySocketAttachment {
 export interface GatewaySocketMessageOptions {
   agentRuntime?: AgentRuntime;
   pluginRuntime?: ClawflarePluginRuntime;
+  toolRegistry?: ToolRegistry;
+  toolContext?: ToolInvokeContext;
 }
 
 function serialize(state: GatewayConnectionState): GatewaySocketAttachment {
@@ -132,6 +136,14 @@ export async function handleGatewaySocketMessage(
 
     if (options?.pluginRuntime !== undefined) {
       methodContext.pluginRuntime = options.pluginRuntime;
+    }
+
+    if (options?.toolRegistry !== undefined) {
+      methodContext.toolRegistry = options.toolRegistry;
+    }
+
+    if (options?.toolContext !== undefined) {
+      methodContext.toolContext = options.toolContext;
     }
 
     const response = await dispatchGatewayMethod(frame, methodContext);

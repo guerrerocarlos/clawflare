@@ -11,10 +11,11 @@
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "test/**/*.ts", "drizzle/**/*.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist", ".wrangler"]
 }

@@ -1,14 +1,17 @@
 import type { ClawflareEnv, QueuePayload } from "../env";
 import { getRuntimeDefaults } from "../env";
 import { FakeProviderRuntime } from "../providers/fake";
+import { normalizeProviderError, ProviderError } from "../providers/errors";
 import type { ProviderRuntime } from "../providers/runtime";
 import { normalizeSessionRef } from "../sessions/keys";
 import { SessionLanes } from "../sessions/lanes";
 import type { AgentRuntimeStore } from "../sessions/store";
 import { runEventsKey, transcriptKey } from "../storage/keys";
 import type { ClawHubSkill } from "../plugins/types";
-import { normalizeProviderError } from "../providers/errors";
 import { createProviderFetch } from "../providers/fetcher";
+import type { ToolPolicyContext } from "../security/policy";
+import type { ToolRegistry } from "../tools/registry";
+import type { ToolInvokeContext } from "../tools/runtime";
 import { buildPrompt } from "./prompt";
 import type {
   AgentEventSink,
@@ -44,6 +47,10 @@ export interface DurableAgentRuntimeOptions {
   transcriptIndexingQueue?: QueueLike;
   auditQueue?: QueueLike;
   enabledSkills?: () => Promise<ClawHubSkill[]>;
+  toolRegistry?: ToolRegistry;
+  createToolContext?: (session: { accountId: string; agentId: string; sessionId: string; sessionKey: string }, input: AgentRunInput) => ToolInvokeContext;
+  modelToolPolicy?: ToolPolicyContext;
+  maxToolSteps?: number;
   now?: () => Date;
   runId?: () => string;
 }
@@ -52,9 +59,55 @@ interface RunCompletion {
   promise: Promise<AgentWaitResult>;
 }
 
+interface ParsedToolCall {
+  name: string;
+  input: unknown;
+}
+
+const toolCallStart = "<clawflare_tool_call>";
+const toolCallEnd = "</clawflare_tool_call>";
+
+function renderToolInstructions(catalog: Array<{ name: string; description: string; inputSchema: unknown }>): string {
+  return [
+    "You can use tools.",
+    `If a tool is required, respond with exactly one ${toolCallStart}JSON${toolCallEnd} block and no extra text.`,
+    'The JSON must look like {"name":"tool_name","input":{...}}.',
+    "When you have enough information, respond with the final user-facing answer as plain text.",
+    "Available tools:",
+    JSON.stringify(catalog, null, 2),
+  ].join("\n");
+}
+
+function parseToolCall(text: string): ParsedToolCall | null {
+  const start = text.indexOf(toolCallStart);
+  const end = text.indexOf(toolCallEnd);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return null;
+  }
+
+  const jsonText = text.slice(start + toolCallStart.length, end).trim();
+
+  if (jsonText.length === 0) {
+    return null;
+  }
+
+  const value = JSON.parse(jsonText) as Record<string, unknown>;
+
+  if (typeof value.name !== "string" || !("input" in value)) {
+    throw new ProviderError("PROVIDER_RESPONSE", "Model returned an invalid tool call shape.", 502, false);
+  }
+
+  return {
+    name: value.name,
+    input: value.input,
+  };
+}
+
 export class DurableAgentRuntime implements AgentRuntime {
   private readonly lanes: SessionLanes;
   private readonly provider: ProviderRuntime;
+  private readonly maxToolSteps: number;
   private readonly completions = new Map<string, RunCompletion>();
   private readonly now: () => Date;
   private readonly runId: () => string;
@@ -62,6 +115,7 @@ export class DurableAgentRuntime implements AgentRuntime {
   constructor(private readonly options: DurableAgentRuntimeOptions) {
     this.lanes = options.lanes ?? new SessionLanes();
     this.provider = options.provider ?? new FakeProviderRuntime();
+    this.maxToolSteps = options.maxToolSteps ?? 3;
     this.now = options.now ?? (() => new Date());
     this.runId = options.runId ?? (() => crypto.randomUUID());
   }
@@ -223,10 +277,8 @@ export class DurableAgentRuntime implements AgentRuntime {
         sessionKey: session.sessionKey,
       }, { skills: (await this.options.enabledSkills?.()) ?? [] });
       const providerFetch = createProviderFetch();
-      const providerOutput = await this.provider.complete(
-        { model: input.model ?? this.options.env.CLAWFLARE_DEFAULT_MODEL ?? "deterministic", prompt, messages: input.messages },
-        { env: this.options.env, fetcher: providerFetch },
-      );
+      const toolTrace: NonNullable<AgentRunSummary["toolTrace"]> = [];
+      const providerOutput = await this.completeWithTools(input, session, prompt, providerFetch, emit, toolTrace);
       await emit("assistant", { text: providerOutput.text, usage: providerOutput.usage });
 
       const endedAt = this.now().toISOString();
@@ -237,6 +289,9 @@ export class DurableAgentRuntime implements AgentRuntime {
 
       if (providerOutput.usage !== undefined) {
         summary.usage = providerOutput.usage;
+      }
+      if (toolTrace.length > 0) {
+        summary.toolTrace = toolTrace;
       }
       await this.options.store.updateRunStatus(accepted.runId, {
         status: "completed",
@@ -274,6 +329,89 @@ export class DurableAgentRuntime implements AgentRuntime {
         error: normalizedError,
       };
     }
+  }
+
+  private async completeWithTools(
+    input: AgentRunInput,
+    session: { accountId: string; agentId: string; sessionId: string; sessionKey: string },
+    prompt: string,
+    providerFetch: typeof fetch,
+    emit: (phase: AgentStreamEvent["phase"], payload: unknown) => Promise<void>,
+    toolTrace: NonNullable<AgentRunSummary["toolTrace"]>,
+  ): Promise<Awaited<ReturnType<ProviderRuntime["complete"]>>> {
+    const registry = this.options.toolRegistry;
+    const toolContextFactory = this.options.createToolContext;
+    const model = input.model ?? this.options.env.CLAWFLARE_DEFAULT_MODEL ?? "deterministic";
+
+    if (!registry || !toolContextFactory) {
+      return await this.provider.complete({ model, prompt, messages: input.messages }, { env: this.options.env, fetcher: providerFetch });
+    }
+
+    const toolContext = toolContextFactory(session, input);
+    const allowedTools = registry
+      .catalog()
+      .filter((tool) => this.isToolAllowed(tool.name, toolContext.policy))
+      .map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      }));
+
+    if (allowedTools.length === 0) {
+      return await this.provider.complete({ model, prompt, messages: input.messages }, { env: this.options.env, fetcher: providerFetch });
+    }
+
+    const systemContent = `${prompt}\n\n<clawflare-tools>\n${renderToolInstructions(allowedTools)}\n</clawflare-tools>`;
+    const conversation = [{ role: "system" as const, content: systemContent }, ...input.messages];
+    let providerOutput = await this.provider.complete(
+      { model, prompt: systemContent, messages: conversation },
+      { env: this.options.env, fetcher: providerFetch },
+    );
+
+    for (let step = 0; step < this.maxToolSteps; step += 1) {
+      const toolCall = parseToolCall(providerOutput.text);
+
+      if (!toolCall) {
+        return providerOutput;
+      }
+
+      const traceEntry: NonNullable<AgentRunSummary["toolTrace"]>[number] = {
+        tool: toolCall.name,
+        input: toolCall.input,
+      };
+      await emit("tool", { step: step + 1, tool: toolCall.name, input: toolCall.input });
+
+      try {
+        const result = await registry.invoke(toolCall.name, toolCall.input, toolContext);
+        traceEntry.result = result;
+        toolTrace.push(traceEntry);
+        conversation.push({ role: "assistant", content: providerOutput.text });
+        conversation.push({ role: "tool", content: JSON.stringify({ tool: toolCall.name, ok: true, result }) });
+        await emit("tool", { step: step + 1, tool: toolCall.name, result });
+      } catch (error) {
+        const normalizedError = normalizeProviderError(error);
+        traceEntry.error = normalizedError;
+        toolTrace.push(traceEntry);
+        conversation.push({ role: "assistant", content: providerOutput.text });
+        conversation.push({ role: "tool", content: JSON.stringify({ tool: toolCall.name, ok: false, error: normalizedError }) });
+        await emit("tool", { step: step + 1, tool: toolCall.name, error: normalizedError });
+      }
+
+      providerOutput = await this.provider.complete(
+        { model, prompt: systemContent, messages: conversation },
+        { env: this.options.env, fetcher: providerFetch },
+      );
+    }
+
+    throw new ProviderError("PROVIDER_RESPONSE", `Model exceeded the tool step limit of ${this.maxToolSteps}.`, 502, false);
+  }
+
+  private isToolAllowed(name: string, policy: ToolPolicyContext): boolean {
+    if (policy.allowedTools !== undefined) {
+      return policy.allowedTools.includes(name);
+    }
+
+    return true;
   }
 
   private async persistRunArtifacts(

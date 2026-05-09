@@ -20,18 +20,15 @@ describe("entry worker", () => {
     });
   });
 
-  it("returns structured placeholders for reserved non-OpenAI routes", async () => {
+  it("requires auth for /tools/invoke", async () => {
     const response = await handleFetch(new Request("https://example.test/tools/invoke", { method: "POST" }), {} as ClawflareEnv);
     const payload = await response.json();
 
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(401);
     expect(payload).toMatchObject({
       ok: false,
       error: {
-        code: "NOT_IMPLEMENTED",
-        details: {
-          route: "POST /tools/invoke",
-        },
+        code: "UNAUTHORIZED",
       },
     });
   });

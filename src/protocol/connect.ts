@@ -20,6 +20,7 @@ export const supportedMethods = [
   "models.list",
   "models.authStatus",
   "tools.catalog",
+  "tools.invoke",
   "plugins.search",
   "plugins.inspect",
   "plugins.planInstall",

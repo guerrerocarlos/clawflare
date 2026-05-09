@@ -1,211 +1,67 @@
 # Clawflare TODO
 
-This is the execution checklist for the approved MVP implementation. Work through it in order. Do not skip compatibility, schema, or security gates to move faster.
+This is the current backlog after the Telegram-first MVP. Completed build phases are tracked in git history and supporting docs. This file focuses only on remaining work.
 
-## 0. Project Scaffold
+## 1. Agent Runtime
 
-- [x] Create `package.json` with TypeScript, Wrangler, Vitest, Cloudflare test pool, TypeBox, lint, and format dependencies.
-- [x] Create `tsconfig.json` for strict ESM TypeScript.
-- [x] Create `vitest.config.ts`.
-- [x] Create `wrangler.jsonc` with Worker, Durable Object, D1, R2, KV, Queue, Vectorize, AI, and secrets placeholders.
-- [x] Create the initial folder tree from `IMPLEMENTATION.md`.
-- [x] Add `.gitignore`.
-- [x] Add initial `README.md` with dev commands and MVP scope.
-- [x] Add `src/env.ts` with typed Cloudflare bindings.
-- [x] Add `src/entry.ts` with placeholder `fetch`, `queue`, and `AgentObject` exports.
-- [x] Verify `pnpm typecheck` and `pnpm test` can run.
+- [ ] Expand the current bounded tool loop beyond the initial safe subset.
+- [ ] Replace the structured text tool-call protocol with native model tool-calling where possible.
+- [ ] Feed tool results back into the model with richer step state and reasoning context.
+- [ ] Add stronger tool execution limits, loop guards, and per-run budgets.
+- [ ] Add better run-state inspection for debugging provider and tool failures.
 
-## 1. Core Protocol And Routing
+## 2. Plugin Runtime
 
-- [x] Implement `src/protocol/frames.ts` for OpenClaw-compatible `req`, `res`, and `event` frames.
-- [x] Implement `src/protocol/errors.ts` with typed errors such as `UNAUTHORIZED`, `BAD_REQUEST`, `NOT_IMPLEMENTED`, `CONFLICT`, and `INTERNAL`.
-- [x] Implement `src/protocol/connect.ts` with `connect.challenge` and MVP `hello-ok`.
-- [x] Implement `src/router/index.ts`.
-- [x] Implement `GET /healthz`.
-- [x] Implement basic route dispatch for `/ws`, `/v1/models`, `/v1/chat/completions`, `/v1/responses`, `/webhook/telegram`, and `/tools/invoke`.
-- [x] Return structured `NOT_IMPLEMENTED` for known-but-unsupported compatibility routes.
-- [x] Add protocol unit tests and route smoke tests.
+- [ ] Replace the in-memory plugin store with durable runtime state.
+- [ ] Persist installed/enabled plugin state independently of Durable Object process lifetime.
+- [ ] Define an approved model for plugin-contributed tool definitions.
+- [ ] Implement plugin-contributed tools for approved safe plugin types.
+- [ ] Design and implement native plugin execution or an explicit non-goal decision.
+- [ ] Add plugin upgrade, disable, and uninstall flows.
 
-## 2. Durable Object Gateway
+## 3. Memory And Retrieval
 
-- [x] Implement `src/agents/agent-object.ts` as the primary Durable Object.
-- [x] Add WebSocket accept/hibernation-compatible connection handling.
-- [x] Send `connect.challenge` after WS connection opens.
-- [x] Implement `connect` method with shared-token auth.
-- [x] Implement connection state, sequence numbers, and heartbeat/tick events.
-- [x] Implement `health` method.
-- [x] Implement method dispatcher in `src/gateway/methods.ts`.
-- [x] Add tests for WS challenge, connect success, connect failure, health, and unknown method errors.
+- [ ] Replace the current `memory_search` stub with real retrieval.
+- [ ] Decide whether Vectorize remains part of the design or is deferred.
+- [ ] Implement transcript chunking and indexing for retrieval.
+- [ ] Add memory write policies, retention, and retrieval limits.
+- [ ] Expose memory health and index lag in doctor/status surfaces.
 
-## 3. Storage Foundations
+## 4. Channels And UX
 
-- [x] Add D1 migrations for `accounts`, `agents`, `plugin_installs`, `audit_events`, and `idempotency_keys`.
-- [x] Add DO SQLite migrations for `sessions`, `runs`, `run_events`, `workspace_index`, and `plugin_runtime_state`.
-- [x] Implement `src/storage/d1.ts`.
-- [x] Implement `src/storage/r2.ts`.
-- [x] Implement `src/storage/do-sqlite.ts`.
-- [x] Implement R2 key helpers for transcripts, run events, workspace files, plugins, and artifacts.
-- [x] Add migration and storage adapter tests.
+- [ ] Add inline Telegram approval actions for plugin install and privileged operations.
+- [ ] Support Telegram file, photo, audio, and document ingest.
+- [ ] Improve group-chat routing, mentions, and multi-agent session mapping.
+- [ ] Add a real control UI with auth instead of the current debug-only WebChat.
+- [ ] Implement additional channels if still needed: Slack, Discord, generic webhook.
 
-## 4. Agent Run Loop
+## 5. Provider And Model Operations
 
-- [x] Define `AgentRuntime` types in `src/agents/runtime.ts`.
-- [x] Implement session key normalization in `src/sessions/keys.ts`.
-- [x] Implement session store in `src/sessions/store.ts`.
-- [x] Implement per-session lane serialization in `src/sessions/lanes.ts`.
-- [x] Implement run creation, accepted ack, lifecycle start/end/error, and run event persistence.
-- [x] Implement fake provider for deterministic tests.
-- [x] Implement prompt assembly skeleton with `<clawflare-runtime>` block.
-- [x] Implement `agent` method.
-- [x] Implement `agent.wait` method.
-- [x] Persist transcript JSONL to R2.
-- [x] Enqueue transcript indexing and audit queue messages after terminal run state.
-- [x] Add tests for accepted ack, streaming events, run wait, serialization, and transcript persistence.
+- [ ] Add streaming support for `/v1/chat/completions`.
+- [ ] Add streaming support for `/v1/responses`.
+- [ ] Improve provider observability and structured logging for live failures.
+- [ ] Add safer provider failover or fallback behavior.
+- [ ] Expand provider compatibility testing across OpenAI-compatible backends.
 
-## 5. Provider Runtime
+## 6. Security And Isolation
 
-- [x] Define `ProviderRuntime` interface.
-- [x] Implement provider registry.
-- [x] Implement `openai-compatible` provider.
-- [x] Implement `anthropic-compatible` provider if needed for MVP model choice.
-- [x] Implement `workers-ai` provider wrapper.
-- [x] Implement `cloudflare-ai-gateway` provider using OpenClaw plugin behavior as reference.
-- [x] Implement model ref parsing as `provider/model`.
-- [x] Implement secret resolution without logging values.
-- [x] Implement provider auth status without exposing secrets.
-- [x] Implement normalized provider errors.
-- [x] Add provider unit tests with mocked fetch.
+- [ ] Decide which tasks stay in Workers isolates versus Cloudflare Containers.
+- [ ] Add a container-backed execution path for tasks that cannot safely run in isolates.
+- [ ] Harden workspace and web-fetch tool policies for real autonomous tool use.
+- [ ] Add stronger operator auth for admin/control surfaces, likely Cloudflare Access or OAuth.
+- [ ] Review plugin install scanning and quarantine rules before enabling richer plugin execution.
 
-## 6. OpenAI-Compatible HTTP
+## 7. Deployment And Operations
 
-- [x] Implement `GET /v1/models`.
-- [x] Implement `GET /v1/models/:id`.
-- [x] Implement non-streaming `POST /v1/chat/completions`.
-- [x] Implement non-streaming `POST /v1/responses`.
-- [x] Map HTTP requests into the AgentObject run path.
-- [x] Add OpenAI-compatible response fixtures.
-- [x] Add tests for models, chat completions, responses, auth failure, and provider failure.
+- [ ] Add durable environment promotion rules for dev/staging/prod.
+- [ ] Add automated post-deploy smoke checks beyond webhook sync.
+- [ ] Add explicit queue topology management and drift detection.
+- [ ] Document backup, restore, and incident procedures for D1/R2/KV state.
+- [ ] Add dashboards/alerts for provider failures, queue backlog, and Telegram delivery issues.
 
-## 7. Queue Infrastructure
+## 8. Compatibility
 
-- [x] Define `QueueEnvelope<T>` schemas.
-- [x] Implement `src/queues/index.ts`.
-- [x] Implement `channel-delivery` consumer skeleton.
-- [x] Implement `webhook-events` consumer skeleton.
-- [x] Implement `transcript-indexing` consumer skeleton.
-- [x] Implement `plugin-scans` consumer skeleton.
-- [x] Implement `audit-events` consumer skeleton.
-- [x] Add idempotency checks for queue consumers.
-- [x] Add dead-letter/final failure audit behavior.
-- [x] Add queue tests for idempotent processing and permanent failure handling.
-
-## 8. Built-In Tools
-
-- [x] Define `ToolRuntime` interface.
-- [x] Implement tool registry.
-- [x] Implement `tools.catalog` method.
-- [x] Implement `workspace_list`.
-- [x] Implement `workspace_read`.
-- [x] Implement `workspace_write`.
-- [x] Implement `workspace_patch`.
-- [x] Implement `web_fetch` with SSRF checks, hostname allowlist, response caps, and content extraction.
-- [x] Implement `message_send` through channel runtime.
-- [x] Implement `memory_search` stub or Vectorize-backed minimal version.
-- [x] Implement tool policy checks in `src/security/policy.ts`.
-- [x] Add tests for tool schema validation, allowed calls, denied calls, and R2-backed workspace behavior.
-
-## 9. Telegram Primary Channel
-
-- [x] Implement `src/channels/types.ts`.
-- [x] Implement `src/channels/session-routing.ts`.
-- [x] Implement `src/channels/telegram.ts`.
-- [x] Implement Telegram webhook verification using `X-Telegram-Bot-Api-Secret-Token`.
-- [x] Add `TELEGRAM_WEBHOOK_SECRET` to env typing and docs.
-- [x] Implement dedupe by Telegram `update_id`.
-- [x] Normalize Telegram direct messages.
-- [x] Normalize Telegram group messages.
-- [x] Enforce mention/command requirement for groups.
-- [x] Implement unknown-sender pairing/approval response.
-- [x] Implement allowlist storage and checks.
-- [x] Implement `src/channels/telegram-delivery.ts` using `sendMessage`.
-- [x] Split long Telegram messages safely.
-- [x] Add reply-to behavior when message ID is available.
-- [x] Retry transient/rate-limit failures through `channel-delivery`.
-- [x] Do not retry permanent Telegram authorization failures.
-- [x] Implement Telegram `/start`.
-- [x] Implement Telegram `/help`.
-- [x] Implement Telegram `/status`.
-- [x] Implement Telegram `/plugin search <query>`.
-- [x] Implement Telegram `/plugin install <ref>` as install-plan flow.
-- [x] Implement authenticated `/telegram/status`.
-- [x] Implement authenticated `/telegram/set-webhook`.
-- [x] Add Telegram webhook, routing, pairing, command, and delivery tests with mocked Bot API.
-
-## 10. Debug WebChat
-
-- [x] Implement minimal `src/channels/webchat.ts`.
-- [x] Implement minimal `src/web/` UI or static debug page.
-- [x] Wire WebChat to the same AgentObject protocol path.
-- [x] Keep WebChat marked debug/control-only in docs and UI.
-- [x] Add smoke tests for debug WebChat send/receive.
-
-## 11. ClawHub Skills And Plugin Planning
-
-- [x] Implement `src/plugins/clawhub-client.ts`.
-- [x] Implement ClawHub search with KV cache.
-- [x] Implement `src/plugins/resolver.ts` for `clawhub:<package>`, bare names, and optional exact versions.
-- [x] Implement manifest parsing for skills and native plugins.
-- [x] Implement plugin archive quarantine in R2.
-- [x] Implement static scanner for forbidden APIs and package scripts.
-- [x] Implement `PluginInstallPlan` schema.
-- [x] Implement `plugins.search`.
-- [x] Implement `plugins.inspect`.
-- [x] Implement `plugins.planInstall`.
-- [x] Implement `plugins.install` for ClawHub skills only.
-- [x] Implement `plugins.enable` for installed skills.
-- [x] Update prompt assembly to include enabled ClawHub skills.
-- [x] Add Telegram `/plugin install` approval flow around `plugins.planInstall`.
-- [x] Add tests for skill search, plan, install, enable, prompt inclusion, and native-plugin fail-closed behavior.
-
-## 12. Security, Audit, And Doctor
-
-- [x] Implement `src/security/auth.ts`.
-- [x] Implement scope checks for read/write/admin operations.
-- [x] Implement `src/security/audit.ts`.
-- [x] Emit audit events for plugin install/enable/update.
-- [x] Emit audit events for channel allowlist/pairing changes.
-- [x] Emit audit events for config writes.
-- [x] Add redaction helpers for logs and audit payloads.
-- [x] Implement `src/cli/doctor.ts` or a minimal doctor route/command.
-- [x] Doctor checks required bindings, secrets, unsafe Telegram config, and plugin state.
-- [x] Add security/audit/doctor tests.
-
-## 13. MVP Verification
-
-- [x] Run unit tests.
-- [x] Run Workers/Miniflare integration tests.
-- [x] Run fake provider end-to-end Telegram webhook test.
-- [x] Run fake provider OpenAI-compatible HTTP test.
-- [x] Run queue idempotency tests.
-- [x] Run ClawHub skill install test with fixture metadata.
-- [x] Run security audit tests.
-- [x] Document local setup.
-- [x] Document deploy setup.
-- [x] Document Telegram bot setup and webhook registration.
-
-## 14. Post-MVP Backlog
-
-- [ ] Streaming HTTP `/v1/chat/completions`.
-- [ ] Streaming HTTP `/v1/responses`.
-- [ ] Full device pairing.
-- [ ] Cloudflare Access or OAuth control UI auth.
-- [ ] Native plugin SDK shim execution in Dynamic Workers.
-- [ ] Slack channel.
-- [ ] Discord channel.
-- [ ] Generic webhook channel.
-- [ ] Browser Run tool.
-- [ ] Container sandbox backend.
-- [ ] Inline Telegram approval buttons.
-- [ ] Telegram file/photo/audio/document ingest.
-- [ ] Multi-agent Telegram routing.
-- [ ] Rich control UI.
+- [ ] Expand the OpenClaw-compatible protocol subset beyond the current MVP surface.
+- [ ] Decide which unsupported OpenClaw features are intentionally out of scope.
+- [ ] Document compatibility expectations for ClawHub plugins more precisely.
+- [ ] Add compatibility tests against real or recorded OpenClaw client flows.

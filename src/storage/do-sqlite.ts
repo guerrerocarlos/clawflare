@@ -1,208 +1,105 @@
-export const durableObjectSqliteMigrations = [
-  `CREATE TABLE IF NOT EXISTS sessions (
-    session_key TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    account_id TEXT NOT NULL,
-    agent_id TEXT NOT NULL,
-    title TEXT,
-    status TEXT NOT NULL,
-    last_run_id TEXT,
-    transcript_r2_key TEXT,
-    session_started_at TEXT NOT NULL,
-    last_interaction_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS runs (
-    run_id TEXT PRIMARY KEY,
-    session_key TEXT NOT NULL,
-    session_id TEXT NOT NULL,
-    status TEXT NOT NULL,
-    idempotency_key TEXT,
-    input_json TEXT NOT NULL,
-    summary_json TEXT,
-    error_json TEXT,
-    accepted_at TEXT NOT NULL,
-    started_at TEXT,
-    ended_at TEXT
-  )`,
-  `CREATE TABLE IF NOT EXISTS run_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT NOT NULL,
-    seq INTEGER NOT NULL,
-    stream TEXT NOT NULL,
-    event_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    UNIQUE (run_id, seq)
-  )`,
-  `CREATE TABLE IF NOT EXISTS workspace_index (
-    path TEXT PRIMARY KEY,
-    r2_key TEXT NOT NULL,
-    content_type TEXT,
-    size INTEGER,
-    etag TEXT,
-    updated_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS plugin_runtime_state (
-    plugin_id TEXT PRIMARY KEY,
-    enabled INTEGER NOT NULL,
-    runtime_state_json TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_agent_status ON sessions (account_id, agent_id, status)`,
-  `CREATE INDEX IF NOT EXISTS idx_runs_session ON runs (session_key, accepted_at)`,
-  `CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events (run_id, seq)`,
-] as const;
+import { and, asc, desc, eq } from "drizzle-orm";
+import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
+import { migrate } from "drizzle-orm/durable-sqlite/migrator";
+import * as schema from "../db/do-schema";
+import durableObjectMigrations from "../../drizzle/do/migrations";
 
-export interface SessionRecord {
-  session_key: string;
-  session_id: string;
-  account_id: string;
-  agent_id: string;
-  title: string | null;
-  status: string;
-  last_run_id: string | null;
-  transcript_r2_key: string | null;
-  session_started_at: string;
-  last_interaction_at: string;
-  updated_at: string;
+export type SessionRecord = typeof schema.sessions.$inferSelect;
+export type RunRecord = typeof schema.runs.$inferSelect;
+export type RunEventRecord = Omit<typeof schema.run_events.$inferSelect, "id"> & { id?: number };
+export type WorkspaceIndexRecord = typeof schema.workspace_index.$inferSelect;
+export type PluginRuntimeStateRecord = typeof schema.plugin_runtime_state.$inferSelect;
+
+export interface DurableObjectMigrationConfig {
+  journal: {
+    entries: Array<{
+      idx: number;
+      when: number;
+      tag: string;
+      breakpoints: boolean;
+    }>;
+  };
+  migrations: Record<string, string>;
 }
 
-export interface RunRecord {
-  run_id: string;
-  session_key: string;
-  session_id: string;
-  status: string;
-  idempotency_key: string | null;
-  input_json: string;
-  summary_json: string | null;
-  error_json: string | null;
-  accepted_at: string;
-  started_at: string | null;
-  ended_at: string | null;
-}
+const durableObjectSqliteMigrations: DurableObjectMigrationConfig = {
+  journal: [...durableObjectMigrations.journal.entries].reduce<DurableObjectMigrationConfig["journal"]>(
+    (journal, entry) => {
+      journal.entries.push({ ...entry });
+      return journal;
+    },
+    { ...durableObjectMigrations.journal, entries: [] },
+  ),
+  migrations: { ...durableObjectMigrations.migrations },
+};
 
-export interface RunEventRecord {
-  id?: number;
-  run_id: string;
-  seq: number;
-  stream: string;
-  event_json: string;
-  created_at: string;
-}
+type DurableObjectDatabaseClient = DrizzleSqliteDODatabase<typeof schema>;
 
-export interface WorkspaceIndexRecord {
-  path: string;
-  r2_key: string;
-  content_type: string | null;
-  size: number | null;
-  etag: string | null;
-  updated_at: string;
-}
-
-export interface PluginRuntimeStateRecord {
-  plugin_id: string;
-  enabled: number;
-  runtime_state_json: string;
-  updated_at: string;
-}
-
-interface SqlExecutor {
-  exec(query: string, ...bindings: unknown[]): Iterable<Record<string, unknown>>;
-}
-
-export interface DurableSqlStorage {
-  sql: SqlExecutor;
-}
-
-function first<T>(rows: Iterable<T>): T | null {
-  for (const row of rows) {
-    return row;
-  }
-
-  return null;
-}
-
-function all<T>(rows: Iterable<T>): T[] {
-  return [...rows];
+function first<T>(rows: T[]): T | null {
+  return rows[0] ?? null;
 }
 
 export class DurableObjectSqliteStorage {
-  constructor(private readonly storage: DurableSqlStorage) {}
+  private readonly db: DurableObjectDatabaseClient;
 
-  migrate(): void {
-    for (const statement of durableObjectSqliteMigrations) {
-      this.storage.sql.exec(statement);
-    }
+  constructor(private readonly storage: DurableObjectStorage) {
+    this.db = drizzle(this.storage, { schema });
   }
 
-  upsertSession(record: SessionRecord): void {
-    this.storage.sql.exec(
-      `INSERT INTO sessions (
-         session_key, session_id, account_id, agent_id, title, status, last_run_id,
-         transcript_r2_key, session_started_at, last_interaction_at, updated_at
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(session_key) DO UPDATE SET
-         title = excluded.title,
-         status = excluded.status,
-         last_run_id = excluded.last_run_id,
-         transcript_r2_key = excluded.transcript_r2_key,
-         last_interaction_at = excluded.last_interaction_at,
-         updated_at = excluded.updated_at`,
-      record.session_key,
-      record.session_id,
-      record.account_id,
-      record.agent_id,
-      record.title,
-      record.status,
-      record.last_run_id,
-      record.transcript_r2_key,
-      record.session_started_at,
-      record.last_interaction_at,
-      record.updated_at,
+  async migrate(): Promise<void> {
+    await migrate(this.db, durableObjectSqliteMigrations);
+  }
+
+  async upsertSession(record: SessionRecord): Promise<void> {
+    await this.db
+      .insert(schema.sessions)
+      .values(record)
+      .onConflictDoUpdate({
+        target: schema.sessions.session_key,
+        set: {
+          title: record.title,
+          status: record.status,
+          last_run_id: record.last_run_id,
+          transcript_r2_key: record.transcript_r2_key,
+          last_interaction_at: record.last_interaction_at,
+          updated_at: record.updated_at,
+        },
+      });
+  }
+
+  async getSession(sessionKey: string): Promise<SessionRecord | null> {
+    return first(
+      await this.db
+        .select()
+        .from(schema.sessions)
+        .where(eq(schema.sessions.session_key, sessionKey))
+        .limit(1),
     );
   }
 
-  getSession(sessionKey: string): SessionRecord | null {
-    return first(this.storage.sql.exec("SELECT * FROM sessions WHERE session_key = ?", sessionKey) as Iterable<SessionRecord>);
+  async listSessions(accountId: string, agentId: string): Promise<SessionRecord[]> {
+    return await this.db
+      .select()
+      .from(schema.sessions)
+      .where(and(eq(schema.sessions.account_id, accountId), eq(schema.sessions.agent_id, agentId)))
+      .orderBy(desc(schema.sessions.updated_at));
   }
 
-  listSessions(accountId: string, agentId: string): SessionRecord[] {
-    return all(
-      this.storage.sql.exec(
-        "SELECT * FROM sessions WHERE account_id = ? AND agent_id = ? ORDER BY updated_at DESC",
-        accountId,
-        agentId,
-      ) as Iterable<SessionRecord>,
+  async insertRun(record: RunRecord): Promise<void> {
+    await this.db.insert(schema.runs).values(record);
+  }
+
+  async getRun(runId: string): Promise<RunRecord | null> {
+    return first(
+      await this.db
+        .select()
+        .from(schema.runs)
+        .where(eq(schema.runs.run_id, runId))
+        .limit(1),
     );
   }
 
-  insertRun(record: RunRecord): void {
-    this.storage.sql.exec(
-      `INSERT INTO runs (
-         run_id, session_key, session_id, status, idempotency_key, input_json,
-         summary_json, error_json, accepted_at, started_at, ended_at
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      record.run_id,
-      record.session_key,
-      record.session_id,
-      record.status,
-      record.idempotency_key,
-      record.input_json,
-      record.summary_json,
-      record.error_json,
-      record.accepted_at,
-      record.started_at,
-      record.ended_at,
-    );
-  }
-
-  getRun(runId: string): RunRecord | null {
-    return first(this.storage.sql.exec("SELECT * FROM runs WHERE run_id = ?", runId) as Iterable<RunRecord>);
-  }
-
-  updateRunStatus(
+  async updateRunStatus(
     runId: string,
     fields: {
       status: string;
@@ -211,88 +108,95 @@ export class DurableObjectSqliteStorage {
       started_at?: string | null;
       ended_at?: string | null;
     },
-  ): void {
-    this.storage.sql.exec(
-      `UPDATE runs SET
-         status = ?,
-         summary_json = COALESCE(?, summary_json),
-         error_json = COALESCE(?, error_json),
-         started_at = COALESCE(?, started_at),
-         ended_at = COALESCE(?, ended_at)
-       WHERE run_id = ?`,
-      fields.status,
-      fields.summary_json ?? null,
-      fields.error_json ?? null,
-      fields.started_at ?? null,
-      fields.ended_at ?? null,
-      runId,
-    );
+  ): Promise<void> {
+    const updates: Partial<RunRecord> = {
+      status: fields.status,
+    };
+
+    if ("summary_json" in fields) {
+      updates.summary_json = fields.summary_json ?? null;
+    }
+
+    if ("error_json" in fields) {
+      updates.error_json = fields.error_json ?? null;
+    }
+
+    if ("started_at" in fields) {
+      updates.started_at = fields.started_at ?? null;
+    }
+
+    if ("ended_at" in fields) {
+      updates.ended_at = fields.ended_at ?? null;
+    }
+
+    await this.db.update(schema.runs).set(updates).where(eq(schema.runs.run_id, runId));
   }
 
-  appendRunEvent(record: RunEventRecord): void {
-    this.storage.sql.exec(
-      `INSERT INTO run_events (run_id, seq, stream, event_json, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      record.run_id,
-      record.seq,
-      record.stream,
-      record.event_json,
-      record.created_at,
-    );
+  async appendRunEvent(record: RunEventRecord): Promise<void> {
+    await this.db.insert(schema.run_events).values(record);
   }
 
-  listRunEvents(runId: string): RunEventRecord[] {
-    return all(
-      this.storage.sql.exec("SELECT * FROM run_events WHERE run_id = ? ORDER BY seq ASC", runId) as Iterable<RunEventRecord>,
-    );
+  async listRunEvents(runId: string): Promise<RunEventRecord[]> {
+    return await this.db
+      .select()
+      .from(schema.run_events)
+      .where(eq(schema.run_events.run_id, runId))
+      .orderBy(asc(schema.run_events.seq));
   }
 
-  upsertWorkspaceIndex(record: WorkspaceIndexRecord): void {
-    this.storage.sql.exec(
-      `INSERT INTO workspace_index (path, r2_key, content_type, size, etag, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(path) DO UPDATE SET
-         r2_key = excluded.r2_key,
-         content_type = excluded.content_type,
-         size = excluded.size,
-         etag = excluded.etag,
-         updated_at = excluded.updated_at`,
-      record.path,
-      record.r2_key,
-      record.content_type,
-      record.size,
-      record.etag,
-      record.updated_at,
-    );
+  async upsertWorkspaceIndex(record: WorkspaceIndexRecord): Promise<void> {
+    await this.db
+      .insert(schema.workspace_index)
+      .values(record)
+      .onConflictDoUpdate({
+        target: schema.workspace_index.path,
+        set: {
+          r2_key: record.r2_key,
+          content_type: record.content_type,
+          size: record.size,
+          etag: record.etag,
+          updated_at: record.updated_at,
+        },
+      });
   }
 
-  getWorkspaceIndex(path: string): WorkspaceIndexRecord | null {
+  async getWorkspaceIndex(path: string): Promise<WorkspaceIndexRecord | null> {
     return first(
-      this.storage.sql.exec("SELECT * FROM workspace_index WHERE path = ?", path) as Iterable<WorkspaceIndexRecord>,
+      await this.db
+        .select()
+        .from(schema.workspace_index)
+        .where(eq(schema.workspace_index.path, path))
+        .limit(1),
     );
   }
 
-  setPluginRuntimeState(record: PluginRuntimeStateRecord): void {
-    this.storage.sql.exec(
-      `INSERT INTO plugin_runtime_state (plugin_id, enabled, runtime_state_json, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(plugin_id) DO UPDATE SET
-         enabled = excluded.enabled,
-         runtime_state_json = excluded.runtime_state_json,
-         updated_at = excluded.updated_at`,
-      record.plugin_id,
-      record.enabled,
-      record.runtime_state_json,
-      record.updated_at,
-    );
+  async listWorkspaceIndex(): Promise<WorkspaceIndexRecord[]> {
+    return await this.db.select().from(schema.workspace_index).orderBy(asc(schema.workspace_index.path));
   }
 
-  getPluginRuntimeState(pluginId: string): PluginRuntimeStateRecord | null {
+  async setPluginRuntimeState(record: PluginRuntimeStateRecord): Promise<void> {
+    await this.db
+      .insert(schema.plugin_runtime_state)
+      .values(record)
+      .onConflictDoUpdate({
+        target: schema.plugin_runtime_state.plugin_id,
+        set: {
+          enabled: record.enabled,
+          runtime_state_json: record.runtime_state_json,
+          updated_at: record.updated_at,
+        },
+      });
+  }
+
+  async getPluginRuntimeState(pluginId: string): Promise<PluginRuntimeStateRecord | null> {
     return first(
-      this.storage.sql.exec(
-        "SELECT * FROM plugin_runtime_state WHERE plugin_id = ?",
-        pluginId,
-      ) as Iterable<PluginRuntimeStateRecord>,
+      await this.db
+        .select()
+        .from(schema.plugin_runtime_state)
+        .where(eq(schema.plugin_runtime_state.plugin_id, pluginId))
+        .limit(1),
     );
   }
 }
+
+export { durableObjectSqliteMigrations };

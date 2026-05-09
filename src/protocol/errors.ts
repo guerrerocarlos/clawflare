@@ -1,3 +1,6 @@
+import { PolicyError } from "../security/policy";
+import { ToolError } from "../tools/runtime";
+
 export const gatewayErrorCodes = [
   "UNAUTHORIZED",
   "BAD_REQUEST",
@@ -109,6 +112,14 @@ export function statusForErrorCode(code: GatewayErrorCode): number {
 export function toClawflareError(error: unknown): ClawflareError {
   if (error instanceof ClawflareError) {
     return error;
+  }
+
+  if (error instanceof PolicyError) {
+    return badRequest(error.message, { code: error.code });
+  }
+
+  if (error instanceof ToolError) {
+    return badRequest(error.message, { code: error.code, details: error.details });
   }
 
   if (error instanceof Error) {

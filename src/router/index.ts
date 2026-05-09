@@ -1,7 +1,7 @@
 import type { ClawflareEnv } from "../env";
 import { getRuntimeDefaults } from "../env";
 import { createHelloOk, serverVersion, supportedEvents, supportedMethods } from "../protocol/connect";
-import { badRequest, methodNotAllowed, notFound, notImplemented, toClawflareError } from "../protocol/errors";
+import { badRequest, methodNotAllowed, notFound, toClawflareError } from "../protocol/errors";
 import { jsonResponse } from "../shared/http";
 import { handleWebChatMessage } from "../channels/webchat";
 import { handleTelegramSetWebhook, handleTelegramStatus, handleTelegramWebhook } from "../channels/telegram";
@@ -31,14 +31,6 @@ function errorResponse(error: unknown): Response {
     },
     { status: normalized.status },
   );
-}
-
-function reservedNotImplemented(request: Request): Response {
-  const url = new URL(request.url);
-  const route = routeKey(request.method, url.pathname);
-  const error = notImplemented(route);
-
-  return errorResponse(error);
 }
 
 function getAgentObjectStub(env: ClawflareEnv): DurableObjectStub {
@@ -80,6 +72,51 @@ function routeRoot(): Response {
   return renderDebugWebChat();
 }
 
+function requireBearer(request: Request, env: ClawflareEnv): Response | null {
+  const expected = env.CLAWFLARE_GATEWAY_TOKEN;
+
+  if (!expected) {
+    return jsonResponse({ ok: false, error: { code: "UNAUTHORIZED", message: "CLAWFLARE_GATEWAY_TOKEN is not configured." } }, { status: 401 });
+  }
+
+  const authorization = request.headers.get("authorization");
+  const token = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : undefined;
+
+  if (token !== expected) {
+    return jsonResponse({ ok: false, error: { code: "UNAUTHORIZED", message: "Invalid bearer token." } }, { status: 401 });
+  }
+
+  return null;
+}
+
+async function handleToolsInvoke(request: Request, env: ClawflareEnv): Promise<Response> {
+  const auth = requireBearer(request, env);
+
+  if (auth) {
+    return auth;
+  }
+
+  const body = (await request.json()) as { tool?: string; input?: unknown };
+
+  if (typeof body.tool !== "string") {
+    throw badRequest("tool is required.");
+  }
+
+  const url = new URL(request.url);
+  url.pathname = "/__clawflare/agent/tools/invoke";
+  url.search = "";
+
+  return await getAgentObjectStub(env).fetch(
+    new Request(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 const reservedRoutes: ReservedRoute[] = [
   { method: "GET", path: "/", handler: routeRoot },
   { method: "POST", path: "/webchat/message", handler: handleWebChatMessage },
@@ -92,7 +129,7 @@ const reservedRoutes: ReservedRoute[] = [
   { method: "POST", path: "/webhook/telegram", handler: handleTelegramWebhook },
   { method: "GET", path: "/telegram/status", handler: handleTelegramStatus },
   { method: "POST", path: "/telegram/set-webhook", handler: handleTelegramSetWebhook },
-  { method: "POST", path: "/tools/invoke", handler: reservedNotImplemented },
+  { method: "POST", path: "/tools/invoke", handler: handleToolsInvoke },
 ];
 
 const routeTable = new Map(reservedRoutes.map((route) => [routeKey(route.method, route.path), route]));

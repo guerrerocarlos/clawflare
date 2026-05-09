@@ -5,6 +5,7 @@ import { dispatchGatewayMethod } from "../src/gateway/methods";
 import { createGatewayConnectionState } from "../src/gateway/state";
 import { handleGatewaySocketMessage, initializeGatewaySocket, type GatewayWebSocket } from "../src/gateway/ws";
 import { requestFrame } from "../src/protocol/frames";
+import { createDefaultToolRegistry } from "../src/tools/registry";
 
 class FakeSocket implements GatewayWebSocket {
   readonly messages: string[] = [];
@@ -254,5 +255,52 @@ describe("gateway method dispatcher", () => {
       },
     });
     expect(emitted).toEqual(["started"]);
+  });
+
+  it("dispatches tools.invoke for authenticated connections", async () => {
+    const state = createGatewayConnectionState({ connId: "conn-1" });
+    await dispatchGatewayMethod(requestFrame("1", "connect", { token: "secret" }), {
+      env,
+      connection: state,
+    });
+
+    const response = await dispatchGatewayMethod(
+      requestFrame("2", "tools.invoke", {
+        tool: "web_fetch",
+        input: { url: "https://example.com/page" },
+      }),
+      {
+        env,
+        connection: state,
+        toolRegistry: createDefaultToolRegistry(),
+        toolContext: {
+          env,
+          accountId: "acct",
+          agentId: "agent",
+          policy: {
+            allowRead: true,
+            allowWrite: false,
+            allowNetwork: true,
+            allowChannelSend: false,
+            allowMemory: false,
+            webFetchAllowlist: ["example.com"],
+          },
+          fetcher: async () => new Response("gateway-tool-ok", { status: 200, headers: { "content-type": "text/plain" } }),
+        },
+      },
+    );
+
+    expect(response).toMatchObject({
+      type: "res",
+      id: "2",
+      ok: true,
+      payload: {
+        tool: "web_fetch",
+        result: {
+          status: 200,
+          text: "gateway-tool-ok",
+        },
+      },
+    });
   });
 });

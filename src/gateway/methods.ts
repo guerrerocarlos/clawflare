@@ -3,7 +3,8 @@ import { getRuntimeDefaults } from "../env";
 import type { AgentEventSink, AgentRunInput, AgentRuntime, AgentWaitInput } from "../agents/runtime";
 import { createHelloOk, protocolVersion, supportedEvents, supportedMethods } from "../protocol/connect";
 import type { ClawflarePluginRuntime } from "../plugins/runtime";
-import { createDefaultToolRegistry } from "../tools/registry";
+import { createDefaultToolRegistry, type ToolRegistry } from "../tools/registry";
+import type { ToolInvokeContext } from "../tools/runtime";
 import {
   badRequest,
   createGatewayError,
@@ -21,6 +22,8 @@ export interface GatewayMethodContext {
   agentRuntime?: AgentRuntime;
   emitAgentEvent?: AgentEventSink;
   pluginRuntime?: ClawflarePluginRuntime;
+  toolRegistry?: ToolRegistry;
+  toolContext?: ToolInvokeContext;
 }
 
 function getObjectParams(params: unknown): Record<string, unknown> {
@@ -259,6 +262,25 @@ async function executePluginMethod(request: GatewayRequest, context: GatewayMeth
   }
 }
 
+async function executeToolsInvoke(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
+  requireAuthenticated(context.connection);
+  const params = getObjectParams(request.params);
+
+  if (typeof params.tool !== "string") {
+    throw badRequest("tools.invoke requires tool.");
+  }
+
+  if (context.toolContext === undefined) {
+    throw methodNotImplemented("tools.invoke");
+  }
+
+  const registry = context.toolRegistry ?? createDefaultToolRegistry();
+  return {
+    tool: params.tool,
+    result: await registry.invoke(params.tool, params.input, context.toolContext),
+  };
+}
+
 export async function executeGatewayMethod(request: GatewayRequest, context: GatewayMethodContext): Promise<unknown> {
   switch (request.method) {
     case "connect":
@@ -273,7 +295,9 @@ export async function executeGatewayMethod(request: GatewayRequest, context: Gat
       return await executeSessionsList(request, context);
     case "tools.catalog":
       requireAuthenticated(context.connection);
-      return { tools: createDefaultToolRegistry().catalog() };
+      return { tools: (context.toolRegistry ?? createDefaultToolRegistry()).catalog() };
+    case "tools.invoke":
+      return await executeToolsInvoke(request, context);
     case "plugins.search":
     case "plugins.inspect":
     case "plugins.planInstall":

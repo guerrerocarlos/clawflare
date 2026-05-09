@@ -1,189 +1,143 @@
+import { and, desc, eq } from "drizzle-orm";
+import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import type { ClawflareEnv } from "../env";
+import * as schema from "../db/d1-schema";
 
-export interface AccountRecord {
-  id: string;
-  display_name: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type AccountRecord = typeof schema.accounts.$inferSelect;
+export type AgentRecord = typeof schema.agents.$inferSelect;
+export type PluginInstallRecord = typeof schema.plugin_installs.$inferSelect;
+export type AuditEventRecord = typeof schema.audit_events.$inferSelect;
+export type IdempotencyKeyRecord = typeof schema.idempotency_keys.$inferSelect;
 
-export interface AgentRecord {
-  account_id: string;
-  id: string;
-  display_name: string;
-  default_model: string | null;
-  config_json: string;
-  created_at: string;
-  updated_at: string;
-}
+type D1DatabaseClient = DrizzleD1Database<typeof schema>;
 
-export interface PluginInstallRecord {
-  account_id: string;
-  agent_id: string;
-  plugin_id: string;
-  source: string;
-  version: string | null;
-  integrity: string;
-  state: string;
-  compatibility_tier: number;
-  manifest_json: string;
-  install_plan_json: string | null;
-  archive_r2_key: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AuditEventRecord {
-  id: string;
-  account_id: string;
-  agent_id: string | null;
-  actor_id: string | null;
-  action: string;
-  target: string | null;
-  payload_json: string;
-  created_at: string;
-}
-
-export interface IdempotencyKeyRecord {
-  account_id: string;
-  scope: string;
-  key: string;
-  result_json: string;
-  expires_at: string;
-  created_at: string;
+function first<T>(rows: T[]): T | null {
+  return rows[0] ?? null;
 }
 
 export class D1Storage {
-  constructor(private readonly db: D1Database) {}
+  private readonly db: D1DatabaseClient;
+
+  constructor(db: D1Database) {
+    this.db = drizzle(db, { schema });
+  }
 
   async upsertAccount(record: AccountRecord): Promise<void> {
     await this.db
-      .prepare(
-        `INSERT INTO accounts (id, display_name, created_at, updated_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           display_name = excluded.display_name,
-           updated_at = excluded.updated_at`,
-      )
-      .bind(record.id, record.display_name, record.created_at, record.updated_at)
-      .run();
+      .insert(schema.accounts)
+      .values(record)
+      .onConflictDoUpdate({
+        target: schema.accounts.id,
+        set: {
+          display_name: record.display_name,
+          updated_at: record.updated_at,
+        },
+      });
   }
 
   async getAccount(id: string): Promise<AccountRecord | null> {
-    return await this.db.prepare("SELECT * FROM accounts WHERE id = ?").bind(id).first<AccountRecord>();
+    return first(
+      await this.db
+        .select()
+        .from(schema.accounts)
+        .where(eq(schema.accounts.id, id))
+        .limit(1),
+    );
   }
 
   async upsertAgent(record: AgentRecord): Promise<void> {
     await this.db
-      .prepare(
-        `INSERT INTO agents (account_id, id, display_name, default_model, config_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(account_id, id) DO UPDATE SET
-           display_name = excluded.display_name,
-           default_model = excluded.default_model,
-           config_json = excluded.config_json,
-           updated_at = excluded.updated_at`,
-      )
-      .bind(
-        record.account_id,
-        record.id,
-        record.display_name,
-        record.default_model,
-        record.config_json,
-        record.created_at,
-        record.updated_at,
-      )
-      .run();
+      .insert(schema.agents)
+      .values(record)
+      .onConflictDoUpdate({
+        target: [schema.agents.account_id, schema.agents.id],
+        set: {
+          display_name: record.display_name,
+          default_model: record.default_model,
+          config_json: record.config_json,
+          updated_at: record.updated_at,
+        },
+      });
   }
 
   async getAgent(accountId: string, agentId: string): Promise<AgentRecord | null> {
-    return await this.db
-      .prepare("SELECT * FROM agents WHERE account_id = ? AND id = ?")
-      .bind(accountId, agentId)
-      .first<AgentRecord>();
+    return first(
+      await this.db
+        .select()
+        .from(schema.agents)
+        .where(and(eq(schema.agents.account_id, accountId), eq(schema.agents.id, agentId)))
+        .limit(1),
+    );
   }
 
   async upsertPluginInstall(record: PluginInstallRecord): Promise<void> {
     await this.db
-      .prepare(
-        `INSERT INTO plugin_installs (
-           account_id, agent_id, plugin_id, source, version, integrity, state, compatibility_tier,
-           manifest_json, install_plan_json, archive_r2_key, created_at, updated_at
-         )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(account_id, agent_id, plugin_id) DO UPDATE SET
-           source = excluded.source,
-           version = excluded.version,
-           integrity = excluded.integrity,
-           state = excluded.state,
-           compatibility_tier = excluded.compatibility_tier,
-           manifest_json = excluded.manifest_json,
-           install_plan_json = excluded.install_plan_json,
-           archive_r2_key = excluded.archive_r2_key,
-           updated_at = excluded.updated_at`,
-      )
-      .bind(
-        record.account_id,
-        record.agent_id,
-        record.plugin_id,
-        record.source,
-        record.version,
-        record.integrity,
-        record.state,
-        record.compatibility_tier,
-        record.manifest_json,
-        record.install_plan_json,
-        record.archive_r2_key,
-        record.created_at,
-        record.updated_at,
-      )
-      .run();
+      .insert(schema.plugin_installs)
+      .values(record)
+      .onConflictDoUpdate({
+        target: [schema.plugin_installs.account_id, schema.plugin_installs.agent_id, schema.plugin_installs.plugin_id],
+        set: {
+          source: record.source,
+          version: record.version,
+          integrity: record.integrity,
+          state: record.state,
+          compatibility_tier: record.compatibility_tier,
+          manifest_json: record.manifest_json,
+          install_plan_json: record.install_plan_json,
+          archive_r2_key: record.archive_r2_key,
+          updated_at: record.updated_at,
+        },
+      });
   }
 
   async getPluginInstall(accountId: string, agentId: string, pluginId: string): Promise<PluginInstallRecord | null> {
-    return await this.db
-      .prepare("SELECT * FROM plugin_installs WHERE account_id = ? AND agent_id = ? AND plugin_id = ?")
-      .bind(accountId, agentId, pluginId)
-      .first<PluginInstallRecord>();
+    return first(
+      await this.db
+        .select()
+        .from(schema.plugin_installs)
+        .where(
+          and(
+            eq(schema.plugin_installs.account_id, accountId),
+            eq(schema.plugin_installs.agent_id, agentId),
+            eq(schema.plugin_installs.plugin_id, pluginId),
+          ),
+        )
+        .limit(1),
+    );
   }
 
   async insertAuditEvent(record: AuditEventRecord): Promise<void> {
-    await this.db
-      .prepare(
-        `INSERT INTO audit_events (id, account_id, agent_id, actor_id, action, target, payload_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        record.id,
-        record.account_id,
-        record.agent_id,
-        record.actor_id,
-        record.action,
-        record.target,
-        record.payload_json,
-        record.created_at,
-      )
-      .run();
+    await this.db.insert(schema.audit_events).values(record);
   }
 
   async putIdempotencyKey(record: IdempotencyKeyRecord): Promise<void> {
     await this.db
-      .prepare(
-        `INSERT INTO idempotency_keys (account_id, scope, key, result_json, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(account_id, scope, key) DO UPDATE SET
-           result_json = excluded.result_json,
-           expires_at = excluded.expires_at`,
-      )
-      .bind(record.account_id, record.scope, record.key, record.result_json, record.expires_at, record.created_at)
-      .run();
+      .insert(schema.idempotency_keys)
+      .values(record)
+      .onConflictDoUpdate({
+        target: [schema.idempotency_keys.account_id, schema.idempotency_keys.scope, schema.idempotency_keys.key],
+        set: {
+          result_json: record.result_json,
+          expires_at: record.expires_at,
+        },
+      });
   }
 
   async getIdempotencyKey(accountId: string, scope: string, key: string): Promise<IdempotencyKeyRecord | null> {
-    return await this.db
-      .prepare("SELECT * FROM idempotency_keys WHERE account_id = ? AND scope = ? AND key = ?")
-      .bind(accountId, scope, key)
-      .first<IdempotencyKeyRecord>();
+    return first(
+      await this.db
+        .select()
+        .from(schema.idempotency_keys)
+        .where(
+          and(
+            eq(schema.idempotency_keys.account_id, accountId),
+            eq(schema.idempotency_keys.scope, scope),
+            eq(schema.idempotency_keys.key, key),
+          ),
+        )
+        .orderBy(desc(schema.idempotency_keys.created_at))
+        .limit(1),
+    );
   }
 }
 
