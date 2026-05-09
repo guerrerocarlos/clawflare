@@ -4,9 +4,10 @@ import { DurableAgentRuntime } from "./run-loop";
 import { jsonResponse } from "../shared/http";
 import { DurableObjectSqliteStorage } from "../storage/do-sqlite";
 import { createR2Storage } from "../storage/r2";
+import { createD1Storage } from "../storage/d1";
 import { SqliteAgentRuntimeStore } from "../sessions/store";
 import { ClawflarePluginRuntime } from "../plugins/runtime";
-import { MemoryPluginStore } from "../plugins/registry";
+import { DurablePluginStore } from "../plugins/registry";
 import { selectDefaultAgentProvider } from "../providers/defaults";
 import { createDefaultToolRegistry, type ToolRegistry } from "../tools/registry";
 import { R2WorkspaceBackend } from "../tools/workspace";
@@ -35,8 +36,13 @@ export class AgentObject {
       await sqlite.migrate();
     });
     const r2 = createR2Storage(env);
-    const pluginStore = new MemoryPluginStore();
     const defaults = getRuntimeDefaults(env);
+    const pluginStore = new DurablePluginStore({
+      accountId: defaults.accountId,
+      agentId: defaults.agentId,
+      d1: createD1Storage(env),
+      runtimeState: sqlite,
+    });
     this.toolRegistry = createDefaultToolRegistry();
     this.workspace = new R2WorkspaceBackend({
       accountId: defaults.accountId,

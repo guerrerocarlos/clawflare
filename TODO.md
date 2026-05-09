@@ -12,8 +12,6 @@ This is the current backlog after the Telegram-first MVP. Completed build phases
 
 ## 2. Plugin Runtime
 
-- [ ] Replace the in-memory plugin store with durable runtime state.
-- [ ] Persist installed/enabled plugin state independently of Durable Object process lifetime.
 - [ ] Define an approved model for plugin-contributed tool definitions.
 - [ ] Implement plugin-contributed tools for approved safe plugin types.
 - [ ] Design and implement native plugin execution or an explicit non-goal decision.

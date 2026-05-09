@@ -106,6 +106,14 @@ export class D1Storage {
     );
   }
 
+  async listPluginInstalls(accountId: string, agentId: string): Promise<PluginInstallRecord[]> {
+    return await this.db
+      .select()
+      .from(schema.plugin_installs)
+      .where(and(eq(schema.plugin_installs.account_id, accountId), eq(schema.plugin_installs.agent_id, agentId)))
+      .orderBy(desc(schema.plugin_installs.updated_at));
+  }
+
   async insertAuditEvent(record: AuditEventRecord): Promise<void> {
     await this.db.insert(schema.audit_events).values(record);
   }

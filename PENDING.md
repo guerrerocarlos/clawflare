@@ -35,11 +35,12 @@ Current state:
 
 - ClawHub packages can be searched, inspected, planned, installed, and enabled
 - enabled plugin skills are injected into the prompt as instructions
-- plugin manifests and archives are stored, but runtime enable/install state is not durably modeled yet
+- plugin install metadata is stored durably in D1
+- plugin enabled/runtime state is stored durably in Durable Object SQLite
+- plugin manifests and archives are stored in R2
 
 What is missing:
 
-- installed/enabled plugin state survives inconsistently because the active store is in-memory
 - plugins cannot contribute executable tools to the runtime yet
 - native plugin execution, hooks, and richer SDK compatibility do not exist
 - upgrade, disable, and uninstall workflows are incomplete
@@ -51,7 +52,7 @@ Why it matters:
 
 Implementation concerns:
 
-- plugin state should be durable and auditable
+- plugin state is now durable, but lifecycle operations still need fuller coverage
 - plugin capabilities need explicit allow/deny rules
 - native plugin execution likely requires a stronger isolation model than raw Worker code
 

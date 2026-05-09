@@ -81,8 +81,10 @@ What does not work yet:
 
 Important current limitation:
 
-- installed/enabled plugin state is currently backed by an in-memory plugin store inside the Durable Object process
-- manifests and archives are persisted to R2, but enable/install state is not yet durable runtime state
+- installed plugin metadata is stored durably in D1
+- enabled/runtime state is stored durably in Durable Object SQLite
+- manifests and archives are persisted to R2
+- native plugin execution and plugin-contributed executable tools are still not implemented
 
 Relevant files:
 
@@ -150,7 +152,6 @@ What is still missing for a more OpenClaw-like agent:
 - richer iterative tool calling in the run loop
 - native model tool-calling support instead of the current structured text tool-call protocol
 - broader autonomous tool allowlists and stronger execution policies
-- durable plugin state
 - plugin-contributed executable tools
 - native plugin execution and hooks
 - stronger memory retrieval/write flows
@@ -175,7 +176,6 @@ Not implemented yet:
 
 - broader autonomous tool use beyond the current safe subset
 - native model tool-calling support
-- durable plugin runtime state
 - native plugin execution
 - real memory search/indexing
 - long-running self-improvement flows

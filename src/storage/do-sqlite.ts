@@ -197,6 +197,10 @@ export class DurableObjectSqliteStorage {
         .limit(1),
     );
   }
+
+  async listPluginRuntimeStates(): Promise<PluginRuntimeStateRecord[]> {
+    return await this.db.select().from(schema.plugin_runtime_state).orderBy(asc(schema.plugin_runtime_state.plugin_id));
+  }
 }
 
 export { durableObjectSqliteMigrations };

@@ -7,7 +7,7 @@ import { parsePluginManifest } from "./manifest";
 import { resolvePluginRef } from "./resolver";
 import { scanPluginSource } from "./scanner";
 import type { ClawHubPackage, ClawHubSkill, InstalledPlugin, ParsedPluginManifest } from "./types";
-import type { PluginStore } from "./registry";
+import { manifestIntegrity, type PluginStore } from "./registry";
 import type { AuditSink } from "../security/audit";
 import { pluginAudit } from "../security/audit";
 
@@ -58,15 +58,20 @@ export class ClawflarePluginRuntime {
       throw new Error("Plugin install is blocked by the install plan.");
     }
 
-    await this.options.r2?.putPluginManifest(
-      pluginManifestKey({
-        accountId: this.options.accountId,
-        agentId: this.options.agentId,
-        pluginId: manifest.pluginId,
-        version: manifest.version,
-      }),
-      JSON.stringify(manifest.raw),
-    );
+    const manifestR2Key = pluginManifestKey({
+      accountId: this.options.accountId,
+      agentId: this.options.agentId,
+      pluginId: manifest.pluginId,
+      version: manifest.version,
+    });
+    const archiveR2Key = pluginArchiveKey({
+      accountId: this.options.accountId,
+      agentId: this.options.agentId,
+      pluginId: manifest.pluginId,
+      version: manifest.version,
+    });
+
+    await this.options.r2?.putPluginManifest(manifestR2Key, JSON.stringify(manifest.raw));
 
     if (pkg.archiveUrl !== undefined && this.options.r2 !== undefined) {
       const response = await fetch(pkg.archiveUrl);
@@ -75,28 +80,19 @@ export class ClawflarePluginRuntime {
         throw new Error(`Plugin archive fetch failed with ${response.status}.`);
       }
 
-      await this.options.r2.putPluginArchive(
-        pluginArchiveKey({
-          accountId: this.options.accountId,
-          agentId: this.options.agentId,
-          pluginId: manifest.pluginId,
-          version: manifest.version,
-        }),
-        await response.arrayBuffer(),
-      );
+      await this.options.r2.putPluginArchive(archiveR2Key, await response.arrayBuffer());
     } else if (pkg.source !== undefined && this.options.r2 !== undefined) {
-      await this.options.r2.putPluginArchive(
-        pluginArchiveKey({
-          accountId: this.options.accountId,
-          agentId: this.options.agentId,
-          pluginId: manifest.pluginId,
-          version: manifest.version,
-        }),
-        new TextEncoder().encode(pkg.source).buffer,
-      );
+      await this.options.r2.putPluginArchive(archiveR2Key, new TextEncoder().encode(pkg.source).buffer);
     }
 
-    const installed = await this.options.store.install(manifest);
+    const installed = await this.options.store.install({
+      manifest,
+      source: "clawhub",
+      integrity: await manifestIntegrity(manifest),
+      compatibilityTier: plan.compatibilityTier,
+      installPlanJson: JSON.stringify(plan),
+      archiveR2Key: this.options.r2 === undefined ? null : archiveR2Key,
+    });
     await this.options.audit?.record(
       pluginAudit("plugin.install", {
         accountId: this.options.accountId,

@@ -4,11 +4,13 @@ import { buildPrompt } from "../src/agents/prompt";
 import { ClawHubClient } from "../src/plugins/clawhub-client";
 import { createPluginInstallPlan } from "../src/plugins/install-plan";
 import { parsePluginManifest } from "../src/plugins/manifest";
-import { MemoryPluginStore } from "../src/plugins/registry";
+import { DurablePluginStore, MemoryPluginStore } from "../src/plugins/registry";
 import { resolvePluginRef } from "../src/plugins/resolver";
 import { ClawflarePluginRuntime } from "../src/plugins/runtime";
 import { scanPluginSource } from "../src/plugins/scanner";
 import type { ClawHubPackage } from "../src/plugins/types";
+import type { PluginInstallRecord } from "../src/storage/d1";
+import type { PluginRuntimeStateRecord } from "../src/storage/do-sqlite";
 
 class FakeCache {
   readonly values = new Map<string, string>();
@@ -34,6 +36,38 @@ class FakePluginR2 {
   async putPluginArchive(key: string, body: ArrayBuffer | ReadableStream): Promise<unknown> {
     this.archives.set(key, body);
     return undefined;
+  }
+}
+
+class FakePluginInstallStorage {
+  readonly records = new Map<string, PluginInstallRecord>();
+
+  async upsertPluginInstall(record: PluginInstallRecord): Promise<void> {
+    this.records.set(`${record.account_id}:${record.agent_id}:${record.plugin_id}`, record);
+  }
+
+  async getPluginInstall(accountId: string, agentId: string, pluginId: string): Promise<PluginInstallRecord | null> {
+    return this.records.get(`${accountId}:${agentId}:${pluginId}`) ?? null;
+  }
+
+  async listPluginInstalls(accountId: string, agentId: string): Promise<PluginInstallRecord[]> {
+    return [...this.records.values()].filter((record) => record.account_id === accountId && record.agent_id === agentId);
+  }
+}
+
+class FakePluginRuntimeStateStorage {
+  readonly records = new Map<string, PluginRuntimeStateRecord>();
+
+  async setPluginRuntimeState(record: PluginRuntimeStateRecord): Promise<void> {
+    this.records.set(record.plugin_id, record);
+  }
+
+  async getPluginRuntimeState(pluginId: string): Promise<PluginRuntimeStateRecord | null> {
+    return this.records.get(pluginId) ?? null;
+  }
+
+  async listPluginRuntimeStates(): Promise<PluginRuntimeStateRecord[]> {
+    return [...this.records.values()];
   }
 }
 
@@ -172,6 +206,53 @@ describe("plugin runtime", () => {
     });
 
     await expect(runtime.install("native")).rejects.toThrow("blocked");
+  });
+
+  it("persists plugin install and enable state across store instances", async () => {
+    const installs = new FakePluginInstallStorage();
+    const runtimeState = new FakePluginRuntimeStateStorage();
+    const manifest = parsePluginManifest(skillPackage);
+    const storeA = new DurablePluginStore({
+      accountId: "acct",
+      agentId: "agent",
+      d1: installs as any,
+      runtimeState: runtimeState as any,
+      now: () => new Date("2026-05-09T16:00:00.000Z"),
+    });
+
+    await expect(
+      storeA.install({
+        manifest,
+        source: "clawhub",
+        integrity: "sha256:test",
+        compatibilityTier: 1,
+        installPlanJson: '{"status":"ready"}',
+        archiveR2Key: "accounts/acct/agents/agent/plugins/example/1.0.0/archive.tgz",
+      }),
+    ).resolves.toMatchObject({
+      pluginId: "example",
+      enabled: false,
+    });
+    await expect(storeA.enable("example")).resolves.toMatchObject({
+      pluginId: "example",
+      enabled: true,
+    });
+
+    const storeB = new DurablePluginStore({
+      accountId: "acct",
+      agentId: "agent",
+      d1: installs as any,
+      runtimeState: runtimeState as any,
+      now: () => new Date("2026-05-09T16:05:00.000Z"),
+    });
+
+    await expect(storeB.get("example")).resolves.toMatchObject({
+      pluginId: "example",
+      enabled: true,
+    });
+    await expect(storeB.enabledSkills()).resolves.toEqual([
+      { name: "style", description: "Style guide", content: "Always be concise." },
+    ]);
   });
 
   it("includes enabled ClawHub skills in prompt assembly", () => {
